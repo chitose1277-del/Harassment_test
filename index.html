@@ -1,4 +1,8 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>パワハラ発見ゲーム</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -171,7 +175,36 @@ select{
 }
 .promo h2{color:var(--accent)}
 .promo p{color:var(--mute);font-size:.86rem;margin-top:6px}
+
+/* アンケート：2択で答えられる長さに留める */
+.survey{margin-top:22px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px}
+.survey .q{font-size:.95rem;margin-top:8px;line-height:1.75}
+.survey .q strong{color:var(--accent)}
+.choices{display:flex;gap:10px;margin-top:16px}
+@media (max-width:480px){ .choices{flex-direction:column} }
+.choice{
+  flex:1;padding:15px 12px;border-radius:9px;font-weight:700;font-size:.95rem;
+  border:1px solid var(--line);background:var(--panel-2);color:var(--ink);
+}
+.choice.yes{background:var(--accent);color:#1a1500;border-color:var(--accent)}
+.choice:hover{filter:brightness(1.08)}
+.survey textarea{
+  width:100%;margin-top:14px;padding:11px 12px;border-radius:8px;resize:vertical;min-height:72px;
+  background:var(--panel-2);color:var(--ink);border:1px solid var(--line);font:inherit;font-size:.9rem;
+}
+.survey input[type=text]{
+  width:100%;margin-top:10px;padding:11px 12px;border-radius:8px;
+  background:var(--panel-2);color:var(--ink);border:1px solid var(--line);font:inherit;font-size:.9rem;
+}
+.survey .send{
+  margin-top:14px;width:100%;padding:13px;border-radius:9px;
+  background:var(--accent);color:#1a1500;font-weight:700;
+}
+.survey .thanks{color:var(--ok);font-weight:700;margin-top:6px}
+.survey .small{color:var(--dim);font-size:.78rem;margin-top:10px;line-height:1.6}
 </style>
+</head>
+<body>
 
 <div id="app">
 
@@ -205,7 +238,7 @@ select{
         </select>
       </div>
       <button class="btn" id="go-title">はじめる</button>
-      <p class="note">所要時間は1シーンあたり3〜5分です。入力いただいた業種と規模は、集計の区分としてのみ使用します。</p>
+      <p class="note">所要時間は1シーンあたり1〜2分です。入力いただいた業種と規模は、集計の区分としてのみ使用します。</p>
     </div></div>
   </section>
 
@@ -263,6 +296,31 @@ select{
         <h2>この続きは、法人向けの拡張版で</h2>
         <p>業種別のシナリオ、受講状況の管理画面、見落とされやすい発言の抽出に対応しています。社内ネットワークだけで動作し、受講データは御社の外に出ません。</p>
       </div>
+
+      <!-- アンケート：2択だけ必須にして、回答率を落とさない -->
+      <div class="survey" id="sv-ask">
+        <h2>最後にひとつだけ</h2>
+        <p class="q">シナリオを増やし、<strong>受講状況の管理画面</strong>をつけた完全版を、御社で使ってみたいと思いましたか。</p>
+        <div class="choices">
+          <button class="choice yes" id="sv-yes">使ってみたい</button>
+          <button class="choice" id="sv-no">今はいらない</button>
+        </div>
+      </div>
+
+      <div class="survey" id="sv-detail" hidden>
+        <h2 id="sv-head">ありがとうございます</h2>
+        <p class="q" id="sv-sub"></p>
+        <textarea id="sv-free" placeholder="ご意見があれば一言（任意）"></textarea>
+        <input type="text" id="sv-contact" placeholder="ご連絡先（任意）">
+        <button class="send" id="sv-send">送信する</button>
+        <p class="small">いただいた内容は、教材の改善と、ご希望の方へのご案内にのみ使用します。</p>
+      </div>
+
+      <div class="survey" id="sv-thanks" hidden>
+        <h2 class="thanks">ご回答ありがとうございました</h2>
+        <p class="q">体験版はこのあとも何度でもお試しいただけます。</p>
+      </div>
+
       <button class="btn" id="again">別のシーンを選ぶ</button>
       <button class="btn sub" id="retry">同じシーンをもう一度</button>
       <p class="note" id="r-meta"></p>
@@ -621,11 +679,95 @@ function showResult(){
   show("s-result");
 }
 
-$("again").addEventListener("click", () => { buildSceneList(); show("s-title"); });
-$("retry").addEventListener("click", () => startScene(scene._index));
+/* ---------- アンケート ---------- */
+let survey = { want: null, free: "", contact: "" };
+
+function answer(want){
+  survey.want = want;
+  $("sv-ask").hidden = true;
+  $("sv-head").textContent = want ? "ありがとうございます" : "ご回答ありがとうございます";
+  $("sv-sub").textContent = want
+    ? "ご連絡先をいただければ、完全版のご案内をお送りします。"
+    : "差し支えなければ、そう思われた理由をお聞かせください。";
+  $("sv-contact").hidden = !want;
+  $("sv-detail").hidden = false;
+}
+
+$("sv-yes").addEventListener("click", () => answer(true));
+$("sv-no").addEventListener("click", () => answer(false));
+
+$("sv-send").addEventListener("click", () => {
+  survey.free = $("sv-free").value.trim();
+  survey.contact = $("sv-contact").value.trim();
+  $("sv-detail").hidden = true;
+  $("sv-thanks").hidden = false;
+  submitSurvey();
+});
+
+/* ---------- 回答の送信先 ----------
+   Google フォームに送る場合は、ここの2つを埋めるだけで繋がる。
+
+   url    … 共有リンクの末尾 /viewform を /formResponse に差し替えたもの
+            例) https://docs.google.com/forms/d/e/1FAIpQLSxxxxxxxx/formResponse
+
+   fields … 設問ごとの entry 番号。
+            フォーム編集画面の「事前入力したURLを取得」で仮の回答を入れると、
+            できあがったURLに entry.123456789=... の形で並ぶので、それを貼る。
+            使わない項目は空のままでよい（空の項目は送信しない）。
+
+   url が空のあいだは送信せず、画面の完了表示だけを行う。 */
+const SURVEY_FORM = {
+  url: "https://docs.google.com/forms/d/e/1FAIpQLSd_h6uk1cyTTDb-EMsg-LivpIhAj31Pm6G34zgytQp236lr-w/formResponse",
+  fields: {
+    want:     "entry.1896384436",   // 完全版を使ってみたいか
+    free:     "entry.2005172274",   // ご意見
+    contact:  "entry.2096224368",   // ご連絡先
+    industry: "entry.1268290703",   // 業種
+    size:     "entry.1744525395",   // 従業員規模
+    scene:    "entry.1439342981",   // プレイしたシーン
+    rate:     "entry.1268560337"    // 指摘率
+  }
+};
+
+function submitSurvey(){
+  if (!SURVEY_FORM.url) return;
+
+  const values = {
+    want:     survey.want ? "使ってみたい" : "今はいらない",
+    free:     survey.free,
+    contact:  survey.contact,
+    industry: profile.industry,
+    size:     profile.size,
+    scene:    scene ? scene.title : "",
+    rate:     String(stats.total ? Math.round(stats.found * 100 / stats.total) : 0)
+  };
+
+  const data = new FormData();
+  for (const key of Object.keys(SURVEY_FORM.fields)) {
+    const id = SURVEY_FORM.fields[key];
+    if (id && values[key]) data.append(id, values[key]);
+  }
+
+  // Google フォームは応答を返さないため、送信は片道で行う。
+  // 失敗しても画面の進行は止めない。
+  fetch(SURVEY_FORM.url, { method: "POST", mode: "no-cors", body: data }).catch(() => {});
+}
+
+function resetSurvey(){
+  survey = { want: null, free: "", contact: "" };
+  $("sv-free").value = "";
+  $("sv-contact").value = "";
+  $("sv-ask").hidden = false;
+  $("sv-detail").hidden = true;
+  $("sv-thanks").hidden = true;
+}
+
+$("again").addEventListener("click", () => { resetSurvey(); buildSceneList(); show("s-title"); });
+$("retry").addEventListener("click", () => { resetSurvey(); startScene(scene._index); });
 
 /* ---------- 初期表示 ---------- */
 buildSceneList();
 </script>
 
-</body></html>
+</body>
+</html>
