@@ -18,7 +18,7 @@ left=部長
 right=担当
 bg=assets/bg/office.png
 leftimg=assets/chara/boss
-rightimg=assets/chara/staff_f
+rightimg=assets/chara/stafff
 
 L: 佐藤さん、今日は雰囲気が違いますね。
 R: ありがとうございます。少し髪を切りました。
