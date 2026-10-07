@@ -366,9 +366,34 @@ npx serve .</pre>
 const ASSET = {
   scenario: "assets/scenario/",
   bg:       "assets/bg/office.jpg",
-  boss:     "assets/chara/boss_normal.png",
-  staff:    "assets/chara/staff_normal.png",
+  // 立ち絵は「ベース名」。実際に読むのは ベース名 + "_" + 表情 + ".png"
+  // シナリオ側で leftimg= / rightimg= を書くと、そちらが優先されます
+  left:     "assets/chara/boss",
+  right:    "assets/chara/staff",
 };
+
+/* 表情差分が無ければ _normal に、それも無ければ非表示に落とす */
+function setChara(el, base, face){
+  if (!base) { el.style.visibility = "hidden"; return; }
+  const want = base + "_" + (face || "normal") + ".png";
+  if (el.dataset.want === want) return;
+  el.dataset.want = want;
+  el.style.visibility = "visible";
+  el.onerror = () => {
+    const normal = base + "_normal.png";
+    if (el.getAttribute("src") === normal) el.style.visibility = "hidden";
+    else el.src = normal;
+  };
+  el.src = want;
+}
+
+/* シーン開始時に、そのシーンで使う画像を先に読んでおく（切り替えのちらつき防止） */
+function preloadScene(s){
+  const faces = new Set(["normal"]);
+  for (const l of s.lines) faces.add(l.face || "normal");
+  for (const base of [s.leftimg || ASSET.left, s.rightimg || ASSET.right])
+    for (const f of faces) { const im = new Image(); im.src = base + "_" + f + ".png"; }
+}
 
 /* assets/scenario/index.json が無い場合に読みにいくファイル名 */
 const SCENARIO_DEFAULT_FILES = ["power.txt", "customer.txt", "sexual.txt"];
@@ -424,14 +449,16 @@ function parseScenarios(text){
     if (!line || line[0] === "#") continue;
     if (line === "[scene]") {
       if (cur) scenes.push(cur);
-      cur = { title: "", desc: "", left: "上司", right: "部下", type: "power", lines: [] };
+      cur = { title: "", desc: "", left: "上司", right: "部下", type: "power",
+              bg: "", leftimg: "", rightimg: "", lines: [] };
       continue;
     }
     if (!cur) continue;
     const m = line.match(/^([LRlr])(?:\[([^\]]*)\])?\s*:\s*(.*)$/);
     if (m) {
       const tokens = parseTokens(m[3]);
-      if (tokens.length) cur.lines.push({ left: m[1].toLowerCase() === "l", tokens: tokens });
+      if (tokens.length) cur.lines.push({ left: m[1].toLowerCase() === "l",
+                                          face: (m[2] || "normal").trim(), tokens: tokens });
       continue;
     }
     const eq = line.indexOf("=");
@@ -442,6 +469,9 @@ function parseScenarios(text){
       else if (k === "desc") cur.desc = v;
       else if (k === "left") cur.left = v;
       else if (k === "right") cur.right = v;
+      else if (k === "bg") cur.bg = v;
+      else if (k === "leftimg") cur.leftimg = v;
+      else if (k === "rightimg") cur.rightimg = v;
     }
   }
   if (cur) scenes.push(cur);
@@ -469,16 +499,7 @@ let stats = { total: 0, found: 0, wrong: 0, missed: [] };
 let profile = { industry: "", size: "" };
 
 /* ---------- 起動 ---------- */
-// 暗幕は背景画像に重ねる。立ち絵まで暗くならないようにするため
-$("stage").style.backgroundImage =
-  "linear-gradient(rgba(10,13,26,.46),rgba(10,13,26,.46)), url(" + ASSET.bg + ")";
-
-// 立ち絵が無くても遊べるようにしておく（読めなければ非表示にするだけ）
-for (const [id, src] of [["ch-l", ASSET.boss], ["ch-r", ASSET.staff]]) {
-  const el = $(id);
-  el.addEventListener("error", () => { el.style.visibility = "hidden"; });
-  el.src = src;
-}
+// 立ち絵と背景はシーン開始時に割り当てる（startScene / renderLine を参照）
 
 function showLoadError(){
   const fileProto = location.protocol === "file:";
@@ -539,6 +560,10 @@ function buildSceneList(){
 function startScene(i){
   scene = SCENES[i];
   scene._index = i;
+  // 暗幕は背景画像に重ねる。立ち絵まで暗くならないようにするため
+  $("stage").style.backgroundImage =
+    "linear-gradient(rgba(10,13,26,.46),rgba(10,13,26,.46)), url(" + (scene.bg || ASSET.bg) + ")";
+  preloadScene(scene);
   lineIdx = 0;
   stats = { total: countBad(scene), found: 0, wrong: 0, missed: [] };
   show("s-play");
@@ -551,6 +576,9 @@ function renderLine(){
   who.textContent = line.left ? scene.left : scene.right;
   who.className = "who" + (line.left ? "" : " r");
 
+  // 話している側だけ、その行の表情にする。聞いている側は normal のまま
+  setChara($("ch-l"), scene.leftimg  || ASSET.left,  line.left ? line.face : "normal");
+  setChara($("ch-r"), scene.rightimg || ASSET.right, line.left ? "normal" : line.face);
   $("ch-l").classList.toggle("off", !line.left);
   $("ch-r").classList.toggle("off", line.left);
 
