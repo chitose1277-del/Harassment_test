@@ -1,285 +1,463 @@
 <!doctype html>
 <html lang="ja">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>ハラスメント防止研修 体験版</title>
-<title>パワハラ発見ゲーム</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&display=swap" rel="stylesheet">
-<style>
-/* 会話が主役。背景と立ち絵は奥に引き、台詞だけが前に出る一画面構成 */
-:root{
-  color-scheme: dark;
-  --bg:#13151c;
-  --panel:#1b1f29;
-  --panel-2:#232834;
-  --line:rgba(255,255,255,.10);
-  --ink:#f3f4f8;
-  --mute:#a7aebf;
-  --dim:#79818f;
-  --accent:#ffd426;
-  --bad:#ff6b6b;
-  --ok:#5fd68a;
-  --info:#6fb7ff;
-  --sans:"Hiragino Kaku Gothic ProN","Yu Gothic UI","Noto Sans JP",system-ui,sans-serif;
-  --serif:"Shippori Mincho","Hiragino Mincho ProN","Yu Mincho",YuMincho,"MS PMincho",serif;
-}
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%}
-body{
-  background:var(--bg);color:var(--ink);
-  font-family:var(--sans);line-height:1.7;
-  -webkit-font-smoothing:antialiased;
-  overflow:hidden;
-}
-button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
-:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>パワハラシミュレータ</title>
+  <!-- フォントは同梱。機内モードでも見出しと台詞が崩れないようにするため -->
+  <link href="assets/font/shippori-mincho.css" rel="stylesheet">
+  <link href="assets/font/notosansjp-900.css" rel="stylesheet">
+  <style>
+    /* ====== 配色と素材 ======================================================
+       パネルはすべて CSS で組んでいる。画像は背景・立ち絵・ロゴだけ。
+       企業版など落ち着いた見た目が要るときは、この :root の色だけ差し替える。 */
+    :root{
+      color-scheme: dark;
 
-#app{height:100%;display:flex;flex-direction:column}
-.screen{display:none;height:100%;flex-direction:column}
-.screen.on{display:flex}
+      /* 青パネル */
+      --p-top:#2a6fd0;      /* 上端の明るい青 */
+      --p-mid:#11408f;
+      --p-bot:#0a2a63;      /* 下端の濃紺 */
+      --p-line:#7cc3ff;     /* 内側の細いハイライト */
+      --p-frame:#04142f;    /* 外枠 */
+      --p-stripe:rgba(255,255,255,.16);  /* 斜めのスピードライン */
 
-/* ---------- 共通の中央寄せ画面 ---------- */
-.sheet{
-  flex:1;min-height:0;overflow-y:auto;
-  padding:24px 16px 32px;
-}
-.inner{max-width:720px;margin:0 auto;width:100%}
-.eyebrow{color:var(--accent);font-size:.72rem;font-weight:700;letter-spacing:.18em;margin-bottom:10px}
-h1{font-family:var(--serif);font-size:clamp(1.7rem,6vw,2.5rem);font-weight:700;line-height:1.35;text-wrap:balance}
-h2{font-size:1rem;font-weight:700;margin-bottom:8px}
-.lede{color:var(--mute);font-size:.95rem;margin-top:14px}
-.rule{height:1px;background:var(--line);margin:22px 0}
+      /* 金 */
+      --g-top:#ffe878;
+      --g-mid:#ffc21a;
+      --g-bot:#e08900;
+      --g-frame:#4a2c00;
+      --g-ink:#3a2200;
 
-.field{margin-top:18px}
-.field label{display:block;font-size:.78rem;color:var(--mute);margin-bottom:6px}
-select{
-  width:100%;padding:11px 12px;border-radius:8px;
-  background:var(--panel-2);color:var(--ink);
-  border:1px solid var(--line);font-size:.95rem;
-}
-.btn{
-  display:block;width:100%;margin-top:22px;padding:14px;
-  border-radius:9px;background:var(--accent);color:#1a1500;
-  font-weight:700;font-size:1rem;text-align:center;
-}
-.btn:hover{filter:brightness(1.07)}
-.btn.sub{background:var(--panel-2);color:var(--mute);border:1px solid var(--line);font-weight:500}
-.note{color:var(--dim);font-size:.76rem;margin-top:16px;line-height:1.65}
+      /* 判定の色 */
+      --c-bad:#ff4d4d;      /* 該当・見逃し */
+      --c-bad-d:#8d0f1c;
+      --c-ok:#49e07a;       /* 指摘できた */
+      --c-ok-d:#0c6b31;
+      --c-info:#5fb8ff;     /* 誤指摘 */
+      --c-warn:#ffd426;
 
-/* ---------- シーン選択 ---------- */
-.scenes{display:flex;flex-direction:column;gap:10px;margin-top:20px}
-.scene-btn{
-  text-align:left;padding:15px 16px;border-radius:10px;
-  background:var(--panel);border:1px solid var(--line);
-}
-.scene-btn:hover,.scene-btn.sel{border-color:var(--accent);background:var(--panel-2)}
-.code{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;
-  padding:10px 12px;font-size:.76rem;line-height:1.6;white-space:pre-wrap;
-  word-break:break-all;color:var(--mute);overflow-x:auto;margin:8px 0}
-.btn:disabled{opacity:.5;cursor:default}
-.scene-btn .ty{display:inline-block;font-size:.66rem;font-weight:700;letter-spacing:.04em;
-  color:var(--accent);border:1px solid currentColor;border-radius:999px;
-  padding:1px 7px;margin-bottom:5px}
-.scene-btn .t{font-weight:700;font-size:.98rem}
-.scene-btn .d{color:var(--mute);font-size:.8rem;margin-top:3px}
-.scene-btn .m{color:var(--dim);font-size:.72rem;margin-top:6px;font-variant-numeric:tabular-nums}
+      --ink:#fff;
+      --ink-2:#cfe0f5;
+      --ink-3:#9bb3d4;
 
-/* ---------- プレイ画面 ---------- */
-#play{position:relative}
-.stage{
-  position:relative;flex:1;min-height:120px;
-  background-size:cover;background-position:center;
-  overflow:hidden;
-}
-.chara{
-  position:absolute;bottom:-2%;height:92%;width:auto;
-  transition:filter .25s, opacity .25s, transform .25s;
-  pointer-events:none;
-}
-.chara.l{left:3%}
-.chara.r{right:3%}
-.chara.off{filter:brightness(.45) saturate(.55);transform:translateY(8px)}
+      --sans:"Hiragino Kaku Gothic ProN","Yu Gothic UI","Noto Sans JP",system-ui,sans-serif;
+      --serif:"Shippori Mincho","Hiragino Mincho ProN","Yu Mincho",YuMincho,"MS PMincho",serif;
+      --heavy:"Noto Sans JP Heavy","Hiragino Kaku Gothic ProN","Yu Gothic UI",system-ui,sans-serif;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%}
+    body{
+      background:#061227;color:var(--ink);
+      font-family:var(--sans);line-height:1.7;
+      -webkit-font-smoothing:antialiased;
+      overflow:hidden;
+      /* 台詞をタップして指摘するゲームなので、長押しの選択とコピーは止める */
+      -webkit-user-select:none;user-select:none;
+      -webkit-touch-callout:none;
+      -webkit-tap-highlight-color:transparent;
+      touch-action:manipulation;
+      overscroll-behavior:none;
+    }
+    /* メールアドレスだけは選択とコピーを許す */
+    .selectable{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default}
+    button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
+    :focus-visible{outline:2px solid var(--c-warn);outline-offset:2px}
 
-/* 画面が狭いときは台詞を主役にして、話している側だけを出す */
-@media (max-width:620px){
-  .stage{min-height:0}
-  .chara,.chara.l,.chara.r{height:104%;left:50%;right:auto;transform:translateX(-50%)}
-  .chara.off{opacity:0;transform:translateX(-50%)}
-}
+    #app{height:100%;display:flex;flex-direction:column}
+    .screen{display:none;height:100%;flex-direction:column}
+    .screen.on{display:flex}
 
-.hud{
-  position:absolute;inset:8px 10px auto 10px;z-index:2;
-  display:flex;justify-content:space-between;gap:10px;
-  font-size:.74rem;color:var(--mute);
-  font-variant-numeric:tabular-nums;pointer-events:none;
-}
-.hud span{background:rgba(0,0,0,.45);padding:5px 10px;border-radius:6px}
+    /* ====== 画面の土台 ====================================================== */
+    /* タイトルとリザルトは背景画像の上に直接 UI が乗る。暗幕は敷かない */
+    .room{
+      background-image:url("assets/bg/office.jpg");
+      background-size:cover;background-position:center;
+    }
+    .sheet{
+      flex:1;min-height:0;overflow-y:auto;
+      /* 安全域はショートハンドの中で足す。別行で書くと後ろの padding に消される */
+      padding:calc(14px + env(safe-area-inset-top)) 14px
+              calc(26px + env(safe-area-inset-bottom));
+    }
+    .inner{max-width:560px;margin:0 auto;width:100%}
 
-/* メッセージ枠 */
-.msg{
-  position:relative;z-index:3;margin:0 10px 10px;
-  background:rgba(18,21,30,.96);
-  border:2px solid rgba(255,212,38,.72);border-radius:12px;
-  padding:16px 16px 12px;
-}
-.who{
-  position:absolute;top:-15px;left:16px;
-  padding:3px 16px;border-radius:7px;font-size:.78rem;font-weight:700;
-  background:#4b4080;color:#fff;
-}
-.who.r{background:#2c6657}
-.line{
-  font-family:var(--serif);
-  font-size:clamp(1.02rem,2.6vw,1.26rem);line-height:2;
-  min-height:4.6em;
-}
-@media (max-width:620px){
-  .line{min-height:5.6em;line-height:1.95}
-}
-.tok{border-radius:4px;padding:1px 2px;cursor:pointer;transition:background .15s}
-.tok:hover{background:rgba(255,212,38,.14)}
-.tok.hit{background:rgba(255,107,107,.22);box-shadow:inset 0 -2px 0 var(--bad);color:#ffc0c0;cursor:default}
-.tok.miss{background:rgba(111,183,255,.16);box-shadow:inset 0 -2px 0 var(--info);color:#bcd9f7;cursor:default}
-.ch{visibility:hidden}
-.ch.on{visibility:visible}
+    /* ====== 青パネル ========================================================
+       .pnl ひとつで枠と地を作り、::before で左上の斜めストライプを重ねる。 */
+    .pnl{
+      position:relative;border-radius:8px;
+      border:2px solid var(--p-frame);
+      background:linear-gradient(180deg,var(--p-top) 0%,var(--p-mid) 46%,var(--p-bot) 100%);
+      box-shadow:
+        inset 0 0 0 1.5px rgba(124,195,255,.55),
+        inset 0 2px 0 rgba(255,255,255,.22),
+        0 4px 12px rgba(0,0,0,.5);
+    }
+    .pnl > *{position:relative;z-index:1}
+    .pnl::before{
+      content:"";position:absolute;inset:0;pointer-events:none;z-index:0;
+      border-radius:6px;overflow:hidden;
+      background:repeating-linear-gradient(118deg,
+        transparent 0 9px, var(--p-stripe) 9px 20px, transparent 20px 38px);
+      /* 左上の角だけに出す。パネル全面に走らせると背景が騒がしくなる */
+      -webkit-mask-image:radial-gradient(125% 165% at 0% 0%,#000 0 17%,transparent 45%);
+              mask-image:radial-gradient(125% 165% at 0% 0%,#000 0 17%,transparent 45%);
+    }
+    .pnl.flat{background:linear-gradient(180deg,#123f8e,#0a2a63)}
 
-.bar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px}
-.hint{color:var(--dim);font-size:.72rem}
-.next{
-  padding:9px 22px;border-radius:8px;background:var(--accent);color:#1a1500;
-  font-weight:700;font-size:.88rem;white-space:nowrap;
-}
+    /* リボン見出し。平行四辺形は擬似要素を傾けて作り、文字は水平のまま置く */
+    .ribbon{
+      position:absolute;top:-12px;left:12px;z-index:4;
+      padding:3px 17px;font-family:var(--heavy);font-size:.76rem;letter-spacing:.04em;
+      color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.6);
+      display:flex;align-items:center;gap:6px;
+    }
+    .ribbon::before{
+      content:"";position:absolute;inset:0;z-index:-1;transform:skewX(-14deg);
+      border-radius:3px;border:2px solid var(--p-frame);
+      background:linear-gradient(180deg,#3f8ae6,#15479b);
+    }
+    .ribbon.bad::before{background:linear-gradient(180deg,#ff6b6b,var(--c-bad-d))}
+    .ribbon.ok::before {background:linear-gradient(180deg,#5fe892,var(--c-ok-d))}
 
-/* 指摘時のフィードバック */
-.toast{
-  position:absolute;left:50%;top:14px;transform:translateX(-50%);
-  z-index:5;padding:8px 18px;border-radius:999px;
-  font-size:.82rem;font-weight:700;
-  background:rgba(0,0,0,.82);border:1px solid var(--line);
-  opacity:0;transition:opacity .18s,top .18s;pointer-events:none;
-}
-.toast.on{opacity:1;top:22px}
-.toast.hit{color:var(--bad);border-color:rgba(255,107,107,.55)}
-.toast.miss{color:var(--info);border-color:rgba(111,183,255,.5)}
+    /* ====== ボタン ========================================================== */
+    .btn{
+      position:relative;display:block;width:100%;
+      padding:14px 16px;font-family:var(--heavy);font-size:1.02rem;
+      color:var(--g-ink);text-shadow:0 1px 0 rgba(255,255,255,.45);
+      margin-top:12px;z-index:0;
+    }
+    .btn::before{
+      content:"";position:absolute;inset:0;z-index:-1;transform:skewX(-7deg);
+      border-radius:5px;border:2px solid var(--g-frame);
+      background:linear-gradient(180deg,var(--g-top) 0%,var(--g-mid) 52%,var(--g-bot) 100%);
+      box-shadow:inset 0 2px 0 rgba(255,255,255,.7),0 3px 0 #8a5400,0 5px 11px rgba(0,0,0,.45);
+    }
+    .btn:active::before{transform:skewX(-7deg) translateY(2px);box-shadow:inset 0 2px 0 rgba(255,255,255,.7),0 1px 0 #8a5400}
+    .btn.sub{color:#dbe9ff;text-shadow:0 1px 2px rgba(0,0,0,.7)}
+    .btn.sub::before{
+      border-color:var(--p-frame);
+      background:linear-gradient(180deg,#2b63b8,#0d2f6d);
+      box-shadow:inset 0 0 0 1.5px rgba(124,195,255,.5),0 3px 0 #061b42,0 5px 11px rgba(0,0,0,.45);
+    }
+    .btn:disabled{opacity:.5;cursor:default}
 
-/* ---------- リザルト ---------- */
-.score{font-family:var(--serif);font-size:3rem;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
-.gauge{height:9px;border-radius:5px;background:rgba(255,255,255,.1);overflow:hidden;margin-top:14px}
-.gauge i{display:block;height:100%;border-radius:5px;transition:width .7s ease-out}
-.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:20px}
-@media (max-width:480px){ .grid{grid-template-columns:1fr} }
-.cell{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:13px 14px}
-.cell .v{font-size:1.5rem;font-weight:700;font-variant-numeric:tabular-nums}
-.cell .l{color:var(--dim);font-size:.74rem;margin-top:2px}
-.missed{margin-top:22px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
-.missed h2{color:var(--bad)}
-.missed li{list-style:none;color:var(--mute);font-size:.86rem;margin-top:9px;padding-left:16px;position:relative;font-family:var(--serif)}
-.missed li::before{content:"";position:absolute;left:2px;top:.72em;width:6px;height:6px;border-radius:2px;background:var(--bad)}
-.promo{
-  margin-top:22px;background:#241f10;border:1px solid #4a4020;border-radius:10px;padding:16px;
-}
-.promo h2{color:var(--accent)}
-.promo p{color:var(--mute);font-size:.86rem;margin-top:6px}
+    /* ====== 読み込み画面 ==================================================== */
+    #s-splash{background:#fff;align-items:center;justify-content:center}
+    #s-splash img{width:min(62%,300px);height:auto}
 
-/* アンケート：2択で答えられる長さに留める */
-.survey{margin-top:22px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px}
-.survey .q{font-size:.95rem;margin-top:8px;line-height:1.75}
-.survey .q strong{color:var(--accent)}
-.choices{display:flex;gap:10px;margin-top:16px}
-@media (max-width:480px){ .choices{flex-direction:column} }
-.choice{
-  flex:1;padding:15px 12px;border-radius:9px;font-weight:700;font-size:.95rem;
-  border:1px solid var(--line);background:var(--panel-2);color:var(--ink);
-}
-.choice.yes{background:var(--accent);color:#1a1500;border-color:var(--accent)}
-.choice:hover{filter:brightness(1.08)}
-.survey textarea{
-  width:100%;margin-top:14px;padding:11px 12px;border-radius:8px;resize:vertical;min-height:72px;
-  background:var(--panel-2);color:var(--ink);border:1px solid var(--line);font:inherit;font-size:.9rem;
-}
-.survey input[type=text]{
-  width:100%;margin-top:10px;padding:11px 12px;border-radius:8px;
-  background:var(--panel-2);color:var(--ink);border:1px solid var(--line);font:inherit;font-size:.9rem;
-}
-.survey .send{
-  margin-top:14px;width:100%;padding:13px;border-radius:9px;
-  background:var(--accent);color:#1a1500;font-weight:700;
-}
-.survey .thanks{color:var(--ok);font-weight:700;margin-top:6px}
-.survey .small{color:var(--dim);font-size:.78rem;margin-top:10px;line-height:1.6}
-</style>
+    /* ====== タイトル ======================================================== */
+    .logo{display:block;width:100%;max-width:420px;margin:2px auto 14px;height:auto}
+
+    /* アコーディオン。閉じているときは見出しの帯だけが見える */
+    .acc{margin-top:11px}
+    .acc-h{
+      width:100%;display:flex;align-items:center;justify-content:center;
+      padding:13px 44px;font-family:var(--heavy);font-size:1.06rem;
+      color:#fff;text-shadow:0 2px 3px rgba(0,0,0,.55);
+    }
+    .acc-h .caret{
+      position:absolute;right:14px;top:50%;width:22px;height:14px;
+      margin-top:-7px;background:#fff;
+      clip-path:polygon(50% 100%,0 0,100% 0);
+      filter:drop-shadow(0 1px 1px rgba(0,0,0,.6));
+      transition:transform .22s ease;
+    }
+    .acc[data-open="true"] .acc-h .caret{transform:rotate(180deg)}
+    .acc[data-open="false"] .acc-b{display:none}
+    .acc-b{
+      border-top:1.5px solid rgba(124,195,255,.5);
+      padding:14px;
+    }
+    .acc-b .body{font-size:.9rem;line-height:1.95;color:var(--ink-2)}
+    .acc-b .body + .body{margin-top:11px}
+    .acc-b .empty{color:var(--ink-3);font-size:.86rem;text-align:center;padding:10px 0}
+
+    /* シナリオ1件 */
+    .sc{
+      width:100%;text-align:left;display:block;
+      padding:11px 12px;border-radius:5px;
+      background:rgba(3,18,46,.42);
+      border:1px solid rgba(124,195,255,.26);
+    }
+    .sc + .sc{margin-top:9px}
+    .sc:hover{background:rgba(3,18,46,.66);border-color:rgba(255,212,38,.6)}
+    .sc .t{font-family:var(--heavy);font-size:.98rem;color:#fff;line-height:1.5;
+           text-shadow:0 1px 2px rgba(0,0,0,.5)}
+    .sc .d{font-size:.82rem;line-height:1.7;color:var(--ink-2);margin-top:4px}
+    .sc .g{font-size:.72rem;line-height:1.65;color:var(--ink-3);margin-top:5px}
+    .sc .m{font-size:.73rem;color:var(--ink-3);margin-top:6px;font-variant-numeric:tabular-nums}
+
+    /* ====== プレイ画面 ====================================================== */
+    #s-play{position:relative;background:#061227}
+    .stage{
+      position:relative;flex:1;min-height:120px;
+      background-size:cover;background-position:center;overflow:hidden;
+    }
+    .chara{
+      position:absolute;bottom:-2%;height:92%;width:auto;
+      transition:filter .25s, opacity .25s, transform .25s;
+      pointer-events:none;
+    }
+    .chara.l{left:3%}
+    .chara.r{right:3%}
+    .chara.off{filter:brightness(.45) saturate(.55);transform:translateY(8px)}
+    /* 画面が狭いときは台詞を主役にして、話している側だけを出す。
+       大きさは保ったまま下げる。頭より太ももが切れるほうが見栄えがよい */
+    @media (max-width:620px){
+      .stage{min-height:0}
+      .chara,.chara.l,.chara.r{height:104%;bottom:-10%;left:50%;right:auto;transform:translateX(-50%)}
+      .chara.off{opacity:0;transform:translateX(-50%)}
+    }
+
+    /* HUD は右上にひとまとめ。指摘数・進行・音の順 */
+    .hud{
+      position:absolute;z-index:4;
+      top:calc(10px + env(safe-area-inset-top));
+      right:calc(10px + env(safe-area-inset-right));
+      display:flex;align-items:stretch;
+      border:2px solid #fff;border-radius:5px;overflow:hidden;
+      background:linear-gradient(180deg,rgba(92,92,92,.92),rgba(30,30,30,.92));
+      box-shadow:0 2px 8px rgba(0,0,0,.5);
+      font-variant-numeric:tabular-nums;
+    }
+    .hud > *{
+      display:flex;align-items:center;padding:6px 11px;
+      font-size:.78rem;font-weight:700;color:#fff;
+    }
+    .hud > * + *{border-left:1.5px solid rgba(255,255,255,.45)}
+    .hud .mute{font-size:.9rem;line-height:1;padding:6px 10px}
+    .hud .mute.off{color:#ff8a8a;text-decoration:line-through}
+
+    /* メッセージ枠。画面の左右いっぱいに敷く */
+    .msg{
+      position:relative;z-index:3;
+      background:linear-gradient(180deg,rgba(4,12,30,.90),rgba(4,12,30,.97));
+      border-top:3px solid var(--g-mid);
+      padding:20px calc(14px + env(safe-area-inset-right))
+              calc(12px + env(safe-area-inset-bottom))
+              calc(14px + env(safe-area-inset-left));
+    }
+    /* 名前札。右端を斜めに落とす */
+    .who{
+      position:absolute;top:-15px;left:12px;
+      /* 名前の文字数で札の大きさが変わらないよう、最小幅を決めて中央寄せにする */
+      min-width:7.4em;max-width:13em;text-align:center;
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+      padding:4px 22px 4px 14px;
+      font-family:var(--heavy);font-size:.8rem;color:#fff;
+      text-shadow:0 1px 2px rgba(0,0,0,.6);
+      background:linear-gradient(180deg,#2f6fc4,#123a7e);
+      border:2px solid var(--p-frame);
+      clip-path:polygon(0 0,100% 0,calc(100% - 13px) 100%,0 100%);
+    }
+    .who.r{background:linear-gradient(180deg,#2aa08a,#0d5a4c)}
+    .line{
+      font-family:var(--serif);
+      font-size:clamp(1.02rem,2.6vw,1.26rem);line-height:2;
+      min-height:4.6em;
+    }
+    @media (max-width:620px){ .line{min-height:5.6em;line-height:1.95} }
+
+    .tok{border-radius:4px;padding:1px 2px;cursor:pointer;transition:background .15s}
+    .tok:hover{background:rgba(255,212,38,.14)}
+    /* タップできることを、触れる前から見せる。:hover はタッチ端末に無いので、
+       これが無いと手がかりがゼロになる。文字送りの最中は出さない */
+    #line.ready .tok:not(.hit):not(.miss){
+      background:rgba(255,212,38,.07);
+      box-shadow:inset 0 -1px 0 rgba(255,212,38,.45);
+    }
+    #line.coach .tok:not(.hit):not(.miss){animation:tokhint 1.15s ease-in-out 2}
+    @keyframes tokhint{
+      0%,100%{background:rgba(255,212,38,.07)}
+      50%{background:rgba(255,212,38,.32)}
+    }
+    @media (prefers-reduced-motion:reduce){
+      #line.coach .tok:not(.hit):not(.miss){animation:none}
+    }
+    .tok.hit {background:rgba(255,77,77,.24); box-shadow:inset 0 -2px 0 var(--c-bad); color:#ffc7c7;cursor:default}
+    .tok.miss{background:rgba(95,184,255,.18);box-shadow:inset 0 -2px 0 var(--c-info);color:#c3e0ff;cursor:default}
+    .ch{visibility:hidden}
+    .ch.on{visibility:visible}
+
+    .bar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px}
+    .hint{color:var(--ink-2);font-size:.78rem;font-weight:700}
+    .next{
+      position:relative;z-index:0;padding:9px 26px;flex:none;
+      font-family:var(--heavy);font-size:.9rem;color:var(--g-ink);
+      text-shadow:0 1px 0 rgba(255,255,255,.4);white-space:nowrap;
+    }
+    .next::before{
+      content:"";position:absolute;inset:0;z-index:-1;transform:skewX(-9deg);
+      border-radius:4px;border:2px solid var(--g-frame);
+      background:linear-gradient(180deg,var(--g-top),var(--g-mid) 52%,var(--g-bot));
+      box-shadow:inset 0 2px 0 rgba(255,255,255,.65),0 2px 0 #8a5400;
+    }
+    .next:active::before{transform:skewX(-9deg) translateY(2px);box-shadow:inset 0 2px 0 rgba(255,255,255,.65)}
+
+    /* 指摘したときの短い通知 */
+    .toast{
+      position:absolute;left:50%;transform:translateX(-50%);
+      top:calc(56px + env(safe-area-inset-top));   /* HUD の下に出す */
+      z-index:5;padding:8px 20px;border-radius:999px;
+      font-family:var(--heavy);font-size:.82rem;white-space:nowrap;
+      background:rgba(4,12,30,.9);border:2px solid var(--p-frame);
+      opacity:0;transition:opacity .18s,top .18s;pointer-events:none;
+    }
+    .toast.on{opacity:1;top:calc(64px + env(safe-area-inset-top))}
+    .toast.hit {color:#ff8080;box-shadow:inset 0 0 0 1.5px rgba(255,77,77,.6)}
+    .toast.miss{color:#8ccbff;box-shadow:inset 0 0 0 1.5px rgba(95,184,255,.55)}
+
+    /* 判定の理由。名前札と重ならないよう画面の中央に重ね、次の行まで残す */
+    .why{
+      position:absolute;left:14px;right:14px;top:50%;transform:translateY(-50%);z-index:6;
+      max-height:calc(100% - 28px);overflow-y:auto;padding:13px 15px;
+    }
+    .why-k{font-family:var(--heavy);font-size:.76rem;letter-spacing:.04em}
+    .why.hit  .why-k{color:#ff8080}
+    .why.miss .why-k{color:#8ccbff}
+    .why-t{margin-top:6px;font-size:.82rem;line-height:1.8;color:var(--ink-2)}
+
+    /* ====== リザルト ======================================================== */
+    .logo-r{display:block;width:100%;max-width:330px;margin:0 auto 14px;height:auto}
+    .r-main{padding:18px 15px 16px;margin-top:6px}
+    .r-scene{
+      font-family:var(--heavy);font-size:1.05rem;color:#fff;
+      text-shadow:0 2px 3px rgba(0,0,0,.5);line-height:1.45;
+    }
+    .r-rate{
+      font-family:var(--heavy);font-size:clamp(3.2rem,15vw,4.1rem);line-height:1.05;
+      margin-top:4px;font-variant-numeric:tabular-nums;
+      -webkit-text-stroke:4px rgba(3,10,26,.92);paint-order:stroke fill;
+      text-shadow:0 4px 0 rgba(0,0,0,.4);
+    }
+    .r-rate .u{font-size:.58em;margin-left:2px}
+    .r-rate.lv-bad {color:var(--c-bad)}
+    .r-rate.lv-mid {color:var(--c-warn)}
+    .r-rate.lv-good{color:var(--c-ok)}
+    .r-sign{
+      display:none;position:absolute;right:14px;top:52px;width:58px;height:52px;z-index:2;
+      filter:drop-shadow(0 3px 4px rgba(0,0,0,.5));
+    }
+    .r-sign.on{display:block}
+    .gauge{
+      height:13px;border-radius:999px;margin-top:10px;
+      background:rgba(3,14,38,.72);border:1.5px solid rgba(124,195,255,.45);
+      overflow:hidden;
+    }
+    .gauge i{display:block;height:100%;transition:width .7s ease-out}
+
+    .stat{
+      display:flex;align-items:center;margin-top:9px;
+      padding:7px 14px;border-radius:999px;
+      background:linear-gradient(180deg,#1b56b2,#0b2c68);
+      border:1.5px solid rgba(124,195,255,.5);
+    }
+    .stat .v{
+      font-family:var(--heavy);font-size:1.2rem;min-width:2.3em;text-align:center;
+      font-variant-numeric:tabular-nums;text-shadow:0 1px 2px rgba(0,0,0,.5);
+    }
+    .stat .l{
+      font-size:.84rem;font-weight:700;color:var(--ink-2);
+      border-left:1.5px solid rgba(255,255,255,.3);padding-left:13px;margin-left:6px;
+    }
+    .stat.ok   .v{color:var(--c-ok)}
+    .stat.info .v{color:var(--c-info)}
+    .r-comment{font-size:.86rem;line-height:1.85;color:var(--ink-2);margin-top:14px}
+    .r-note{font-size:.74rem;line-height:1.7;color:var(--ink-3);margin-top:9px}
+
+    /* 振り返りの一覧。指摘できた分と見逃した分で枠の色だけが違う */
+    .review{padding:16px 15px 15px;margin-top:22px}
+    .review ul{list-style:none}
+    .review li{position:relative;padding-left:15px;margin-top:13px}
+    .review li:first-child{margin-top:2px}
+    .review li::before{
+      content:"";position:absolute;left:0;top:.66em;width:7px;height:7px;border-radius:2px;
+    }
+    .review .m-q{font-family:var(--serif);font-size:.9rem;line-height:1.8;color:#fff}
+    .review .m-w{margin-top:5px;font-size:.77rem;line-height:1.8;color:var(--ink-3)}
+    .review.bad{border-color:#4d0a12;box-shadow:inset 0 0 0 1.5px rgba(255,107,107,.45),0 4px 12px rgba(0,0,0,.5)}
+    .review.bad li::before{background:var(--c-bad)}
+    .review.ok {border-color:#063b1c;box-shadow:inset 0 0 0 1.5px rgba(73,224,122,.45),0 4px 12px rgba(0,0,0,.5)}
+    .review.ok li::before{background:var(--c-ok)}
+
+    .promo{padding:15px;margin-top:20px}
+    .promo h2{font-family:var(--heavy);font-size:.98rem;color:var(--c-warn);margin-bottom:5px}
+    .promo p{font-size:.84rem;line-height:1.85;color:var(--ink-2)}
+
+    /* 問い合わせ：フォームを置かず、端末のメールアプリに渡すだけ */
+    .contact{padding:16px 15px 15px;margin-top:20px}
+    .contact h2{font-family:var(--heavy);font-size:1rem;color:#fff}
+    .contact .q{font-size:.85rem;line-height:1.85;color:var(--ink-2);margin-top:7px}
+    .contact .mail{display:block;text-decoration:none;text-align:center}
+    .contact .copy{margin-top:10px}
+    .contact .addr{
+      margin-top:12px;color:var(--ink-2);font-size:.83rem;text-align:center;word-break:break-all;
+    }
+    .contact .done{color:var(--c-ok);font-weight:700;font-size:.82rem;margin-top:8px;text-align:center}
+    .contact .small{color:var(--ink-3);font-size:.75rem;margin-top:12px;line-height:1.8}
+
+    /* ====== 読み込みエラー ================================================== */
+    .err-box{padding:18px 16px}
+    .err-box h1{font-family:var(--heavy);font-size:1.3rem;color:var(--c-bad);line-height:1.5}
+    .err-box h2{font-family:var(--heavy);font-size:.92rem;color:#fff;margin-top:18px}
+    .err-box .body{font-size:.88rem;line-height:1.9;color:var(--ink-2);margin-top:10px}
+    .code{
+      background:rgba(3,14,38,.6);border:1px solid rgba(124,195,255,.3);border-radius:5px;
+      padding:10px 12px;font-size:.75rem;line-height:1.7;white-space:pre-wrap;
+      word-break:break-all;color:var(--ink-2);overflow-x:auto;margin-top:9px;
+    }
+
+    /* シナリオ1件の中の行。button の中なので明示的にブロックにする */
+    .sc .t,.sc .d,.sc .g,.sc .m{display:block}
+  </style>
 </head>
 <body>
 
 <div id="app">
 
-  <!-- ① 受講者の属性 -->
-  <section class="screen on" id="s-intake">
-    <div class="sheet"><div class="inner">
-      <p class="eyebrow">ハラスメント防止研修　体験版</p>
-      <h1>“厳しい指導” と “パワハラ”<br>の境目は、どこか</h1>
-      <p class="lede">
-        上司と部下の会話を読み、行き過ぎていると思う発言をタップして指摘してください。
-        正しく見抜けた数だけでなく、<strong>言いすぎだと誤って判断した数</strong>も記録されます。
-      </p>
-      <div class="rule"></div>
-      <div class="field">
-        <label for="industry">業種</label>
-        <select id="industry">
-          <option value="">選択しない</option>
-          <option>建設・製造</option><option>医療・介護</option>
-          <option>運輸・物流</option><option>小売・飲食</option>
-          <option>IT・情報通信</option><option>金融・保険</option>
-          <option>人材・教育</option><option>公務・団体</option>
-          <option>その他</option>
-        </select>
-      </div>
-      <div class="field">
-        <label for="size">従業員規模</label>
-        <select id="size">
-          <option value="">選択しない</option>
-          <option>〜50名</option><option>51〜300名</option>
-          <option>301〜1,000名</option><option>1,001名〜</option>
-        </select>
-      </div>
-      <button class="btn" id="go-title">はじめる</button>
-      <p class="note">所要時間は1シーンあたり3〜5分です。入力いただいた業種と規模は、集計の区分としてのみ使用します。</p>
-    </div></div>
+  <!-- ① 読み込み中。会社のロゴを出しているあいだにシナリオを読む -->
+  <section class="screen on" id="s-splash">
+    <img src="assets/ui/logo_company.png" alt="S・E・PROJECT CO.,LTD.">
   </section>
 
   <!-- ①b 読み込みエラー -->
-  <section class="screen" id="s-error">
+  <section class="screen room" id="s-error">
     <div class="sheet"><div class="inner">
-      <p class="eyebrow">読み込みエラー</p>
-      <h1>シナリオを<br>読み込めませんでした</h1>
-      <p class="lede" id="err-msg"></p>
-      <div id="err-hint" hidden>
-        <div class="rule"></div>
-        <p class="note">
-          フォルダの中で次のどちらかを実行し、表示された <code>http://localhost:8000</code> を開いてください。
-        </p>
-        <pre class="code">python -m http.server 8000
+      <div class="pnl err-box">
+        <h1>シナリオを<br>読み込めませんでした</h1>
+        <p class="body" id="err-msg"></p>
+        <div id="err-hint" hidden>
+          <h2>開き直す手順</h2>
+          <p class="body">フォルダの中で次のどちらかを実行し、表示された http://localhost:8000 を開いてください。</p>
+          <pre class="code">python -m http.server 8000
 npx serve .</pre>
-        <p class="note">
-          Git Pages やサーバーに置いた場合、スマートフォンから開く場合は、この操作は不要です。
-        </p>
+          <p class="body">サーバーに置いた場合と、スマートフォンから開く場合は、この操作は不要です。</p>
+        </div>
+        <h2>詳細</h2>
+        <pre class="code" id="err-detail"></pre>
       </div>
-      <div class="rule"></div>
-      <p class="note">詳細</p>
-      <pre class="code" id="err-detail"></pre>
     </div></div>
   </section>
 
   <!-- ② シーン選択 -->
-  <section class="screen" id="s-title">
+  <section class="screen room" id="s-title">
     <div class="sheet"><div class="inner">
-      <p class="eyebrow">シーンを選ぶ</p>
-      <h1>どの場面から<br>はじめますか</h1>
-      <div class="scenes" id="scene-list"></div>
-      <p class="note">どのシーンにも、問題のある発言と、厳しいけれど適正な業務指導の両方が含まれています。</p>
+      <img class="logo" src="assets/ui/logo_title.png" alt="はらシミュ　パワハラ防止研修ゲーム">
+
+      <section class="acc pnl" data-open="false" id="acc-how">
+        <button class="acc-h" type="button" aria-expanded="false" aria-controls="how-body">
+          操作方法<span class="caret" aria-hidden="true"></span>
+        </button>
+        <div class="acc-b" id="how-body">
+          <p class="body">会話を読み、行き過ぎていると思う発言をタップして指摘してください。正しく見抜けた数だけでなく、言いすぎだと誤って判断した数も記録されます。</p>
+          <p class="body">どのシナリオにも、問題のある発言と、厳しいけれど適正な業務指導の両方が含まれています。</p>
+          <p class="body">指摘すると、その場で判定の理由が出ます。最後に、見逃した発言と指摘できた発言をまとめて振り返れます。</p>
+        </div>
+      </section>
+
+      <div id="acc-list"></div>
+      <p class="r-note" id="scene-empty" hidden>収録されているシーンがありません。</p>
     </div></div>
   </section>
 
@@ -291,510 +469,822 @@ npx serve .</pre>
       <div class="hud">
         <span id="hud-left">指摘 0 件</span>
         <span id="hud-right">1 / 1</span>
+        <button class="mute" id="mute" type="button" aria-label="音を消す">♪</button>
       </div>
       <div class="toast" id="toast"></div>
+      <!-- 判定の理由。指摘した瞬間に出して、次の行へ進むまで残す -->
+      <div class="why pnl flat" id="why" hidden>
+        <p class="why-k" id="why-k"></p>
+        <p class="why-t" id="why-t"></p>
+      </div>
     </div>
     <div class="msg">
       <div class="who" id="who">課長</div>
       <div class="line" id="line"></div>
       <div class="bar">
         <span class="hint">行き過ぎた発言をタップして指摘</span>
-        <button class="next" id="next">次へ ▶</button>
+        <button class="next" id="next" type="button">次へ ▶</button>
       </div>
     </div>
   </section>
 
   <!-- ④ リザルト -->
-  <section class="screen" id="s-result">
+  <section class="screen room" id="s-result">
     <div class="sheet"><div class="inner">
-      <p class="eyebrow">結果</p>
-      <h1 id="r-title">リザルト</h1>
-      <div style="margin-top:22px">
-        <div class="score" id="r-rate">0 %</div>
+      <img class="logo-r" src="assets/ui/logo_result.png" alt="リザルト">
+
+      <div class="pnl r-main">
+        <span class="ribbon"><span>結果</span></span>
+        <svg class="r-sign" id="r-sign" viewBox="0 0 64 58" aria-hidden="true">
+          <path d="M32 3 61 54H3Z" fill="#ffd426" stroke="#3a2200" stroke-width="4" stroke-linejoin="round"/>
+          <path d="M32 21v16" stroke="#3a2200" stroke-width="7" stroke-linecap="round"/>
+          <circle cx="32" cy="45" r="3.6" fill="#3a2200"/>
+        </svg>
+        <p class="r-scene" id="r-scene"></p>
+        <p class="r-rate" id="r-rate"><span id="r-rate-n">0</span><span class="u">%</span></p>
         <div class="gauge"><i id="r-gauge" style="width:0"></i></div>
+
+        <div class="stat"><span class="v" id="r-total">0</span><span class="l">該当した発言の数</span></div>
+        <div class="stat ok"><span class="v" id="r-found">0</span><span class="l">指摘できた数</span></div>
+        <div class="stat info"><span class="v" id="r-wrong">0</span><span class="l">言いすぎと誤認した数</span></div>
+
+        <p class="r-comment" id="r-comment"></p>
+        <button class="btn" id="share-btn" type="button">結果を画像で共有</button>
+        <p class="r-note" id="share-note">指摘率と見逃しの数が画像になります。氏名や回答の中身は入りません。</p>
       </div>
-      <div class="grid">
-        <div class="cell"><div class="v" id="r-total">0</div><div class="l">該当した発言の数</div></div>
-        <div class="cell"><div class="v" id="r-found" style="color:var(--ok)">0</div><div class="l">指摘できた数</div></div>
-        <div class="cell"><div class="v" id="r-wrong" style="color:var(--info)">0</div><div class="l">言いすぎと誤認した数</div></div>
+
+      <div class="pnl review ok" id="r-hit-box">
+        <span class="ribbon ok"><span>指摘できた発言</span></span>
+        <ul id="r-hit"></ul>
       </div>
-      <p class="lede" id="r-comment"></p>
-      <div class="missed" id="r-missed-box">
-        <h2>見逃した発言</h2>
+
+      <div class="pnl review bad" id="r-missed-box">
+        <span class="ribbon bad"><span>見逃した発言</span></span>
         <ul id="r-missed"></ul>
       </div>
-      <div class="promo">
-        <h2>この続きは、法人向けの拡張版で</h2>
-        <p>業種別のシナリオ、受講状況の管理画面、見落とされやすい発言の抽出に対応しています。社内ネットワークだけで動作し、受講データは御社の外に出ません。</p>
+
+      <div class="pnl promo" id="promo" hidden>
+        <h2 id="promo-h"></h2>
+        <p id="promo-p"></p>
       </div>
 
-      <!-- アンケート：2択だけ必須にして、回答率を落とさない -->
-      <div class="survey" id="sv-ask">
-        <h2>最後にひとつだけ</h2>
-        <p class="q">シナリオを増やし、<strong>受講状況の管理画面</strong>をつけた完全版を、御社で使ってみたいと思いましたか。</p>
-        <div class="choices">
-          <button class="choice yes" id="sv-yes">使ってみたい</button>
-          <button class="choice" id="sv-no">今はいらない</button>
-        </div>
+      <!-- 問い合わせ：端末のメールアプリを開くだけ。アプリ側は何も送信しない -->
+      <div class="pnl contact" id="contact">
+        <h2>ご意見・お問い合わせ</h2>
+        <p class="q">追加してほしいシーン、判定への疑問、不具合のご報告などをお送りください。</p>
+        <a class="btn mail" id="ct-mail" href="#">メールで問い合わせる</a>
+        <button class="btn sub copy" id="ct-copy" type="button">メールアドレスをコピー</button>
+        <p class="addr selectable" id="ct-addr"></p>
+        <p class="done" id="ct-done" hidden>コピーしました</p>
+        <p class="small">お使いのメールアプリが開きます。書いた内容は、ご自身が送信するまでどこにも送られません。メールアプリをお使いでない場合は、上のアドレス宛にお送りください。</p>
       </div>
 
-      <div class="survey" id="sv-detail" hidden>
-        <h2 id="sv-head">ありがとうございます</h2>
-        <p class="q" id="sv-sub"></p>
-        <textarea id="sv-free" placeholder="ご意見があれば一言（任意）"></textarea>
-        <input type="text" id="sv-contact" placeholder="ご連絡先（任意）">
-        <button class="send" id="sv-send">送信する</button>
-        <p class="small">いただいた内容は、教材の改善と、ご希望の方へのご案内にのみ使用します。</p>
+      <div style="margin-top:22px">
+        <button class="btn" id="again" type="button">別のシーンを選ぶ</button>
+        <button class="btn sub" id="retry" type="button">同じシーンをもう一度</button>
       </div>
-
-      <div class="survey" id="sv-thanks" hidden>
-        <h2 class="thanks">ご回答ありがとうございました</h2>
-        <p class="q">体験版はこのあとも何度でもお試しいただけます。</p>
-      </div>
-
-      <button class="btn" id="again">別のシーンを選ぶ</button>
-      <button class="btn sub" id="retry">同じシーンをもう一度</button>
-      <p class="note" id="r-meta"></p>
     </div></div>
   </section>
 
 </div>
 
 <script>
-/* ---------- アセットの場所 ---------- */
-/* index.html から見た相対パス。フォルダ名を変えるならここだけ直せば済みます */
-const ASSET = {
-  scenario: "assets/scenario/",
-  bg:       "assets/bg/office.jpg",
-  // 立ち絵は「ベース名」。実際に読むのは ベース名 + "_" + 表情 + ".png"
-  // シナリオ側で leftimg= / rightimg= を書くと、そちらが優先されます
-  left:     "assets/chara/boss",
-  right:    "assets/chara/staff",
-};
-
-/* 表情差分が無ければ _normal に、それも無ければ非表示に落とす */
-function setChara(el, base, face){
-  if (!base) { el.style.visibility = "hidden"; return; }
-  const want = base + "_" + (face || "normal") + ".png";
-  if (el.dataset.want === want) return;
-  el.dataset.want = want;
-  el.style.visibility = "visible";
-  el.onerror = () => {
-    const normal = base + "_normal.png";
-    if (el.getAttribute("src") === normal) el.style.visibility = "hidden";
-    else el.src = normal;
+  /* ---------- アセットの場所 ---------- */
+  /* index.html から見た相対パス。フォルダ名を変えるならここだけ直せば済みます */
+  const ASSET = {
+    scenario: "assets/scenario/",
+    bg:       "assets/bg/office.jpg",
+    // 立ち絵は「ベース名」。実際に読むのは ベース名 + "_" + 表情 + ".png"
+    // シナリオ側で leftimg= / rightimg= を書くと、そちらが優先されます
+    left:     "assets/chara/boss",
+    right:    "assets/chara/staff",
   };
-  el.src = want;
-}
 
-/* シーン開始時に、そのシーンで使う画像を先に読んでおく（切り替えのちらつき防止） */
-function preloadScene(s){
-  const faces = new Set(["normal"]);
-  for (const l of s.lines) faces.add(l.face || "normal");
-  for (const base of [s.leftimg || ASSET.left, s.rightimg || ASSET.right])
-    for (const f of faces) { const im = new Image(); im.src = base + "_" + f + ".png"; }
-}
-
-/* assets/scenario/index.json が無い場合に読みにいくファイル名 */
-const SCENARIO_DEFAULT_FILES = ["power.txt", "customer.txt", "sexual.txt"];
-
-const TYPE_LABEL = { power: "パワハラ", customer: "カスハラ", sexual: "セクハラ" };
-
-const loadErrors = [];
-
-/* シナリオを assets/scenario/ から読む。
-   index.json に {"files":[...]} があればその順で、無ければ既定のファイル名で。
-   DLC を追加するときは、txt を置いて index.json に1行足すだけで済みます。 */
-async function loadScenarioText(){
-  let files = SCENARIO_DEFAULT_FILES;
-  try {
-    const r = await fetch(ASSET.scenario + "index.json", { cache: "no-cache" });
-    if (r.ok) {
-      const j = await r.json();
-      if (Array.isArray(j.files) && j.files.length) files = j.files;
-    }
-  } catch (e) {
-    /* index.json が無いのは異常ではない。既定のファイル名で続行する */
+  /* 表情差分が無ければ _normal に、それも無ければ非表示に落とす */
+  function setChara(el, base, face){
+    if (!base) { el.style.visibility = "hidden"; return; }
+    const want = base + "_" + (face || "normal") + ".png";
+    if (el.dataset.want === want) return;
+    el.dataset.want = want;
+    el.style.visibility = "visible";
+    el.onerror = () => {
+      const normal = base + "_normal.png";
+      if (el.getAttribute("src") === normal) el.style.visibility = "hidden";
+      else el.src = normal;
+    };
+    el.src = want;
   }
-  const parts = [];
-  for (const name of files) {
+
+  /* シーン開始時に、そのシーンで使う画像を先に読んでおく（切り替えのちらつき防止） */
+  function preloadScene(s){
+    const faces = new Set(["normal"]);
+    for (const l of s.lines) faces.add(l.face || "normal");
+    for (const base of [s.leftimg || ASSET.left, s.rightimg || ASSET.right])
+      for (const f of faces) { const im = new Image(); im.src = base + "_" + f + ".png"; }
+  }
+
+  /* assets/scenario/index.json が無い場合に読みにいくファイル名 */
+  const SCENARIO_DEFAULT_FILES = ["power.txt", "customer.txt", "sexual.txt"];
+
+  const TYPE_LABEL = { power: "パワハラ", customer: "カスハラ", sexual: "セクハラ" };
+  /* 文章の中ではきちんとした呼び方を使う */
+  const TYPE_LONG  = { power: "パワーハラスメント", customer: "カスタマーハラスメント",
+                       sexual: "セクシュアルハラスメント" };
+
+  const loadErrors = [];
+
+  /* シナリオを assets/scenario/ から読む。
+     index.json に {"files":[...]} があればその順で、無ければ既定のファイル名で。
+     DLC を追加するときは、txt を置いて index.json に1行足すだけで済みます。 */
+  async function loadScenarioText(){
+    let files = SCENARIO_DEFAULT_FILES;
     try {
-      const r = await fetch(ASSET.scenario + name, { cache: "no-cache" });
-      if (!r.ok) { loadErrors.push(name + " … HTTP " + r.status); continue; }
-      const body = await r.text();
-      if (body.trim()) parts.push(body);
-      else loadErrors.push(name + " … 中身が空です");
+      const r = await fetch(ASSET.scenario + "index.json", { cache: "no-cache" });
+      if (r.ok) {
+        const j = await r.json();
+        if (Array.isArray(j.files) && j.files.length) files = j.files;
+      }
     } catch (e) {
-      loadErrors.push(name + " … " + ((e && e.message) || "読み込みに失敗"));
+      /* index.json が無いのは異常ではない。既定のファイル名で続行する */
+    }
+    const parts = [];
+    for (const name of files) {
+      try {
+        const r = await fetch(ASSET.scenario + name, { cache: "no-cache" });
+        if (!r.ok) { loadErrors.push(name + " … HTTP " + r.status); continue; }
+        const body = await r.text();
+        if (body.trim()) parts.push(body);
+        else loadErrors.push(name + " … 中身が空です");
+      } catch (e) {
+        loadErrors.push(name + " … " + ((e && e.message) || "読み込みに失敗"));
+      }
+    }
+    return parts.join("\n");
+  }
+
+  /* ---------- シナリオの解析（scenario.txt と同じ書式） ---------- */
+  function parseTokens(body){
+    return body.split("|").map(s => s.trim()).filter(Boolean).map(chunk => {
+      if (chunk.length >= 2 && chunk[0] === "<" && chunk[chunk.length - 1] === ">") {
+        return { text: chunk.slice(1, -1).trim(), bad: true };
+      }
+      return { text: chunk, bad: false };
+    });
+  }
+
+  function parseScenarios(text){
+    const scenes = [];
+    let cur = null;
+    for (const raw of text.split(/\r?\n/)) {
+      const line = raw.trim();
+      if (!line || line[0] === "#") continue;
+      if (line === "[scene]") {
+        if (cur) scenes.push(cur);
+        cur = { title: "", desc: "", left: "上司", right: "部下", type: "power",
+                bg: "", leftimg: "", rightimg: "", lines: [] };
+        continue;
+      }
+      if (!cur) continue;
+      const m = line.match(/^([LRlr])(?:\[([^\]]*)\])?\s*:\s*(.*)$/);
+      if (m) {
+        const tokens = parseTokens(m[3]);
+        if (tokens.length) cur.lines.push({ left: m[1].toLowerCase() === "l",
+                                            face: (m[2] || "normal").trim(), tokens: tokens });
+        continue;
+      }
+      /* 「?N 理由」= 直前の行の N 番目（1始まり）のトークンに対する判定理由。
+         書かなかったトークンは whyText() の定型文に落ちる */
+      const w = line.match(/^\?(\d+)\s+(.+)$/);
+      if (w && cur.lines.length) {
+        const tks = cur.lines[cur.lines.length - 1].tokens;
+        const i = Number(w[1]) - 1;
+        if (tks[i]) tks[i].why = w[2].trim();
+        continue;
+      }
+      const eq = line.indexOf("=");
+      if (eq > 0) {
+        const k = line.slice(0, eq).trim(), v = line.slice(eq + 1).trim();
+        if (k === "title") cur.title = v;
+        else if (k === "type") cur.type = v;
+        else if (k === "desc") cur.desc = v;
+        else if (k === "left") cur.left = v;
+        else if (k === "right") cur.right = v;
+        else if (k === "bg") cur.bg = v;
+        else if (k === "leftimg") cur.leftimg = v;
+        else if (k === "rightimg") cur.rightimg = v;
+      }
+    }
+    if (cur) scenes.push(cur);
+    return scenes.filter(s => s.lines.length);
+  }
+
+  function countBad(scene){
+    let n = 0;
+    for (const l of scene.lines) for (const t of l.tokens) if (t.bad) n++;
+    return n;
+  }
+
+  /* ---------- 画面の切り替え ---------- */
+  const $ = id => document.getElementById(id);
+  function show(id){
+    for (const el of document.querySelectorAll(".screen")) el.classList.toggle("on", el.id === id);
+    const sheet = document.querySelector("#" + id + " .sheet");
+    if (sheet) sheet.scrollTop = 0;
+  }
+
+  /* ---------- 状態 ---------- */
+  let SCENES = [];
+  let scene = null, lineIdx = 0, marks = [], chars = [], typing = false, timer = null;
+  let stats = { total: 0, found: 0, wrong: 0, hit: [], missed: [] };
+
+
+  /* ---------- 起動 ---------- */
+  // 立ち絵と背景はシーン開始時に割り当てる（startScene / renderLine を参照）
+
+  function showLoadError(){
+    const fileProto = location.protocol === "file:";
+    $("err-msg").textContent = fileProto
+      ? "index.html をブラウザで直接開いた場合、ブラウザの制限により "
+        + "assets フォルダの中身を読み込めません。簡易サーバー経由で開いてください。"
+      : "assets/scenario/ のファイルが見つかりませんでした。"
+        + "index.html と同じ場所に assets フォルダがあるか確認してください。";
+    $("err-hint").hidden = !fileProto;
+    $("err-detail").textContent =
+      (loadErrors.length ? loadErrors.join("\n") : "読み込めたシナリオが0件でした。")
+      + "\n\n探した場所: " + new URL(ASSET.scenario, location.href).href;
+    show("s-error");
+  }
+
+  (async function boot(){
+    const t0 = Date.now();
+    SCENES = parseScenarios(await loadScenarioText());
+    /* 会社のロゴが一瞬だけ光って消えると落ち着かないので、最低 900ms は出す */
+    setTimeout(() => {
+      if (!SCENES.length) { showLoadError(); return; }
+      buildSceneList();
+      show("s-title");
+    }, Math.max(0, 900 - (Date.now() - t0)));
+    if (loadErrors.length) console.warn("一部のシナリオを読み込めませんでした:\n" + loadErrors.join("\n"));
+  })();
+
+
+
+  /* 操作方法と、種類ごとのシナリオ一覧をアコーディオンで並べる。
+     開くのは一度にひとつだけ。スマートフォンで縦に伸びすぎないようにするため */
+  function openAcc(sec){
+    for (const a of document.querySelectorAll(".acc")) {
+      const on = (a === sec) && a.dataset.open !== "true";
+      a.dataset.open = on ? "true" : "false";
+      a.querySelector(".acc-h").setAttribute("aria-expanded", on ? "true" : "false");
     }
   }
-  return parts.join("\n");
-}
-
-/* ---------- シナリオの解析（scenario.txt と同じ書式） ---------- */
-function parseTokens(body){
-  return body.split("|").map(s => s.trim()).filter(Boolean).map(chunk => {
-    if (chunk.length >= 2 && chunk[0] === "<" && chunk[chunk.length - 1] === ">") {
-      return { text: chunk.slice(1, -1).trim(), bad: true };
-    }
-    return { text: chunk, bad: false };
+  document.addEventListener("click", e => {
+    const h = e.target.closest(".acc-h");
+    if (h) openAcc(h.parentElement);
   });
-}
 
-function parseScenarios(text){
-  const scenes = [];
-  let cur = null;
-  for (const raw of text.split(/\r?\n/)) {
-    const line = raw.trim();
-    if (!line || line[0] === "#") continue;
-    if (line === "[scene]") {
-      if (cur) scenes.push(cur);
-      cur = { title: "", desc: "", left: "上司", right: "部下", type: "power",
-              bg: "", leftimg: "", rightimg: "", lines: [] };
-      continue;
-    }
-    if (!cur) continue;
-    const m = line.match(/^([LRlr])(?:\[([^\]]*)\])?\s*:\s*(.*)$/);
-    if (m) {
-      const tokens = parseTokens(m[3]);
-      if (tokens.length) cur.lines.push({ left: m[1].toLowerCase() === "l",
-                                          face: (m[2] || "normal").trim(), tokens: tokens });
-      continue;
-    }
-    const eq = line.indexOf("=");
-    if (eq > 0) {
-      const k = line.slice(0, eq).trim(), v = line.slice(eq + 1).trim();
-      if (k === "title") cur.title = v;
-      else if (k === "type") cur.type = v;
-      else if (k === "desc") cur.desc = v;
-      else if (k === "left") cur.left = v;
-      else if (k === "right") cur.right = v;
-      else if (k === "bg") cur.bg = v;
-      else if (k === "leftimg") cur.leftimg = v;
-      else if (k === "rightimg") cur.rightimg = v;
+  function buildSceneList(){
+    const box = $("acc-list");
+    box.innerHTML = "";
+    const kinds = ["power", "customer", "sexual"].filter(k => SCENES.some(s => s.type === k));
+    $("scene-empty").hidden = kinds.length > 0;
+
+    for (const k of kinds) {
+      const sec = document.createElement("section");
+      sec.className = "acc pnl";
+      sec.dataset.open = "false";
+      sec.innerHTML =
+        '<button class="acc-h" type="button" aria-expanded="false">'
+        + '<span class="lb"></span><span class="caret" aria-hidden="true"></span></button>'
+        + '<div class="acc-b"></div>';
+      sec.querySelector(".lb").textContent = TYPE_LABEL[k];
+      const body = sec.querySelector(".acc-b");
+
+      let n = 0;
+      SCENES.forEach((s, i) => {
+        if (s.type !== k) return;
+        n++;
+        const b = document.createElement("button");
+        b.className = "sc";
+        b.type = "button";
+        b.innerHTML = '<span class="t"></span><span class="d"></span>'
+                    + '<span class="g"></span><span class="m"></span>';
+        b.querySelector(".t").textContent =
+          "シナリオ" + n + "：" + (s.title || ("シーン " + (i + 1)));
+
+        /* desc は「内容／根拠 …」の形で書いてある。読み手には別の行で見せる */
+        const parts = (s.desc || "").split(/[\s　]*／[\s　]*根拠[\s　]*/);
+        b.querySelector(".d").textContent = parts[0] || "";
+        const g = b.querySelector(".g");
+        g.textContent = parts.length > 1 && parts[1] ? "根拠　" + parts.slice(1).join("／") : "";
+        g.hidden = !g.textContent;
+
+        b.querySelector(".m").textContent =
+          "会話 " + s.lines.length + " 行　／　該当 " + countBad(s) + " 件";
+        b.addEventListener("click", () => startScene(i));
+        body.appendChild(b);
+      });
+      box.appendChild(sec);
     }
   }
-  if (cur) scenes.push(cur);
-  return scenes.filter(s => s.lines.length);
-}
 
-function countBad(scene){
-  let n = 0;
-  for (const l of scene.lines) for (const t of l.tokens) if (t.bad) n++;
-  return n;
-}
+  /* ---------- プレイ ---------- */
+  function startScene(i){
+    scene = SCENES[i];
+    scene._index = i;
+    // 暗幕は背景画像に重ねる。立ち絵まで暗くならないようにするため
+    $("stage").style.backgroundImage =
+      "linear-gradient(rgba(6,14,38,.12),rgba(6,14,38,.12)), url(" + (scene.bg || ASSET.bg) + ")";
+    preloadScene(scene);
+    lineIdx = 0;
+    stats = { total: countBad(scene), found: 0, wrong: 0, hit: [], missed: [] };
+    show("s-play");
+    renderLine();
+  }
 
-/* ---------- 画面の切り替え ---------- */
-const $ = id => document.getElementById(id);
-function show(id){
-  for (const el of document.querySelectorAll(".screen")) el.classList.toggle("on", el.id === id);
-  const sheet = document.querySelector("#" + id + " .sheet");
-  if (sheet) sheet.scrollTop = 0;
-}
+  function renderLine(){
+    const line = scene.lines[lineIdx];
+    const who = $("who");
+    who.textContent = line.left ? scene.left : scene.right;
+    who.className = "who" + (line.left ? "" : " r");
 
-/* ---------- 状態 ---------- */
-let SCENES = [];
-let scene = null, lineIdx = 0, marks = [], chars = [], typing = false, timer = null;
-let stats = { total: 0, found: 0, wrong: 0, missed: [] };
-let profile = { industry: "", size: "" };
+    // 話している側だけ、その行の表情にする。聞いている側は normal のまま
+    setChara($("ch-l"), scene.leftimg  || ASSET.left,  line.left ? line.face : "normal");
+    setChara($("ch-r"), scene.rightimg || ASSET.right, line.left ? "normal" : line.face);
+    $("ch-l").classList.toggle("off", !line.left);
+    $("ch-r").classList.toggle("off", line.left);
 
-/* ---------- 起動 ---------- */
-// 立ち絵と背景はシーン開始時に割り当てる（startScene / renderLine を参照）
+    $("why").hidden = true;          // 前の行の解説を残さない
+    const box = $("line");
+    box.className = "line";          // ready / coach を持ち越さない
+    box.innerHTML = "";
+    marks = line.tokens.map(() => 0);
+    chars = [];
 
-function showLoadError(){
-  const fileProto = location.protocol === "file:";
-  $("err-msg").textContent = fileProto
-    ? "index.html をブラウザで直接開いた場合、ブラウザの制限により "
-      + "assets フォルダの中身を読み込めません。簡易サーバー経由で開いてください。"
-    : "assets/scenario/ のファイルが見つかりませんでした。"
-      + "index.html と同じ場所に assets フォルダがあるか確認してください。";
-  $("err-hint").hidden = !fileProto;
-  $("err-detail").textContent =
-    (loadErrors.length ? loadErrors.join("\n") : "読み込めたシナリオが0件でした。")
-    + "\n\n探した場所: " + new URL(ASSET.scenario, location.href).href;
-  show("s-error");
-}
+    line.tokens.forEach((tk, i) => {
+      const sp = document.createElement("span");
+      sp.className = "tok";
+      sp.dataset.i = String(i);
+      for (const ch of tk.text) {
+        const c = document.createElement("span");
+        c.className = "ch";
+        c.textContent = ch;
+        sp.appendChild(c);
+        chars.push(c);
+      }
+      box.appendChild(sp);
+    });
 
-(async function boot(){
-  const btn = $("go-title");
-  const label = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = "読み込み中…";
+    updateHud();
+    startTyping();
+  }
 
-  SCENES = parseScenarios(await loadScenarioText());
+  function startTyping(){
+    clearInterval(timer);
+    typing = true;
+    let n = 0;
+    timer = setInterval(() => {
+      if (n >= chars.length) { finishTyping(); return; }
+      chars[n].classList.add("on");
+      n++;
+    }, 28);
+  }
 
-  if (!SCENES.length) { showLoadError(); return; }
+  /* 初回だけ出すチュートリアル。一度タップしたら二度と出さない */
+  let coachDone = false;
+  try { coachDone = localStorage.getItem("coach") === "1"; } catch (e) { /* 使えなくても動く */ }
+  function endCoach(){
+    if (coachDone) return;
+    coachDone = true;
+    try { localStorage.setItem("coach", "1"); } catch (e) {}
+    $("line").classList.remove("coach");
+  }
 
-  btn.disabled = false;
-  btn.textContent = label;
-  if (loadErrors.length) console.warn("一部のシナリオを読み込めませんでした:\n" + loadErrors.join("\n"));
-})();
+  function finishTyping(){
+    clearInterval(timer);
+    typing = false;
+    for (const c of chars) c.classList.add("on");
+    const box = $("line");
+    box.classList.add("ready");            // ここで初めてタップの手がかりを出す
+    if (!coachDone) box.classList.add("coach");
+  }
 
-$("go-title").addEventListener("click", () => {
-  profile.industry = $("industry").value;
-  profile.size = $("size").value;
-  buildSceneList();
-  show("s-title");
-});
+  function updateHud(){
+    $("hud-left").textContent = "指摘 " + stats.found + " 件";
+    $("hud-right").textContent = (lineIdx + 1) + " / " + scene.lines.length;
+  }
 
-function buildSceneList(){
-  const box = $("scene-list");
-  box.innerHTML = "";
-  SCENES.forEach((s, i) => {
-    const b = document.createElement("button");
-    b.className = "scene-btn";
-    b.innerHTML =
-      '<div class="ty"></div><div class="t"></div><div class="d"></div><div class="m"></div>';
-    const ty = b.querySelector(".ty");
-    ty.textContent = TYPE_LABEL[s.type] || "";
-    ty.hidden = !TYPE_LABEL[s.type];
-    b.querySelector(".t").textContent = s.title || ("シーン " + (i + 1));
-    b.querySelector(".d").textContent = s.desc || "";
-    b.querySelector(".m").textContent = "会話 " + s.lines.length + " 行　／　該当 " + countBad(s) + " 件";
-    b.addEventListener("click", () => startScene(i));
-    box.appendChild(b);
-  });
-}
+  /* 判定の理由。シナリオに「?N …」が無いトークンは、ここの定型文に落ちる。
+     left は加害する側（上司・来店客）、right は受ける側という作りになっている */
+  function whyText(tk, speakerIsLeft){
+    if (tk.why) return tk.why;
+    if (tk.bad) return "この発言はハラスメントに該当すると判定しています。";
+    return speakerIsLeft
+      ? "業務上必要かつ相当な範囲を超えてはいないと判断しています。"
+      : "これは受け手の側の発言です。ハラスメントには当たりません。";
+  }
+  function showWhy(tk, speakerIsLeft){
+    const box = $("why");
+    box.className = "why pnl flat " + (tk.bad ? "hit" : "miss");
+    $("why-k").textContent = tk.bad ? "該当と判定した理由" : "問題なしと判定した理由";
+    $("why-t").textContent = whyText(tk, speakerIsLeft);
+    box.hidden = false;
+  }
 
-/* ---------- プレイ ---------- */
-function startScene(i){
-  scene = SCENES[i];
-  scene._index = i;
-  // 暗幕は背景画像に重ねる。立ち絵まで暗くならないようにするため
-  $("stage").style.backgroundImage =
-    "linear-gradient(rgba(10,13,26,.46),rgba(10,13,26,.46)), url(" + (scene.bg || ASSET.bg) + ")";
-  preloadScene(scene);
-  lineIdx = 0;
-  stats = { total: countBad(scene), found: 0, wrong: 0, missed: [] };
-  show("s-play");
-  renderLine();
-}
+  let toastTimer = null;
+  function toast(text, kind){
+    const t = $("toast");
+    t.textContent = text;
+    t.className = "toast on " + kind;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { t.className = "toast " + kind; }, 1100);
+  }
 
-function renderLine(){
-  const line = scene.lines[lineIdx];
-  const who = $("who");
-  who.textContent = line.left ? scene.left : scene.right;
-  who.className = "who" + (line.left ? "" : " r");
-
-  // 話している側だけ、その行の表情にする。聞いている側は normal のまま
-  setChara($("ch-l"), scene.leftimg  || ASSET.left,  line.left ? line.face : "normal");
-  setChara($("ch-r"), scene.rightimg || ASSET.right, line.left ? "normal" : line.face);
-  $("ch-l").classList.toggle("off", !line.left);
-  $("ch-r").classList.toggle("off", line.left);
-
-  const box = $("line");
-  box.innerHTML = "";
-  marks = line.tokens.map(() => 0);
-  chars = [];
-
-  line.tokens.forEach((tk, i) => {
-    const sp = document.createElement("span");
-    sp.className = "tok";
-    sp.dataset.i = String(i);
-    for (const ch of tk.text) {
-      const c = document.createElement("span");
-      c.className = "ch";
-      c.textContent = ch;
-      sp.appendChild(c);
-      chars.push(c);
+  $("line").addEventListener("click", e => {
+    if (typing) { finishTyping(); return; }
+    const tok = e.target.closest(".tok");
+    if (!tok) return;
+    endCoach();
+    const i = Number(tok.dataset.i);
+    if (marks[i]) return;
+    const tk = scene.lines[lineIdx].tokens[i];
+    const bad = tk.bad;
+    if (bad) {
+      marks[i] = 1; stats.found++; Native.tap("ok"); Sound.play("ok");
+      stats.hit.push({ text: tk.text, why: whyText(tk, scene.lines[lineIdx].left) });
+      tok.classList.add("hit");
+      toast("ハラスメントに該当します", "hit");
+    } else {
+      marks[i] = 2; stats.wrong++; Native.tap("ng"); Sound.play("ng");
+      tok.classList.add("miss");
+      toast("これは問題のない発言です", "miss");
     }
-    box.appendChild(sp);
+    showWhy(tk, scene.lines[lineIdx].left);
+    updateHud();
   });
 
-  updateHud();
-  startTyping();
-}
+  $("next").addEventListener("click", advance);
 
-function startTyping(){
-  clearInterval(timer);
-  typing = true;
-  let n = 0;
-  timer = setInterval(() => {
-    if (n >= chars.length) { finishTyping(); return; }
-    chars[n].classList.add("on");
-    n++;
-  }, 28);
-}
-
-function finishTyping(){
-  clearInterval(timer);
-  typing = false;
-  for (const c of chars) c.classList.add("on");
-}
-
-function updateHud(){
-  $("hud-left").textContent = "指摘 " + stats.found + " 件";
-  $("hud-right").textContent = (lineIdx + 1) + " / " + scene.lines.length;
-}
-
-let toastTimer = null;
-function toast(text, kind){
-  const t = $("toast");
-  t.textContent = text;
-  t.className = "toast on " + kind;
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { t.className = "toast " + kind; }, 1100);
-}
-
-$("line").addEventListener("click", e => {
-  if (typing) { finishTyping(); return; }
-  const tok = e.target.closest(".tok");
-  if (!tok) return;
-  const i = Number(tok.dataset.i);
-  if (marks[i]) return;
-  const bad = scene.lines[lineIdx].tokens[i].bad;
-  if (bad) {
-    marks[i] = 1; stats.found++;
-    tok.classList.add("hit");
-    toast("パワハラに該当します", "hit");
-  } else {
-    marks[i] = 2; stats.wrong++;
-    tok.classList.add("miss");
-    toast("これは問題のない発言です", "miss");
+  function advance(){
+    if (typing) { finishTyping(); return; }
+    scene.lines[lineIdx].tokens.forEach((tk, i) => {
+      if (tk.bad && marks[i] !== 1)
+        stats.missed.push({ text: tk.text, why: whyText(tk, scene.lines[lineIdx].left) });
+    });
+    lineIdx++;
+    if (lineIdx >= scene.lines.length) { showResult(); return; }
+    Sound.play("next");
+    renderLine();
   }
-  updateHud();
-});
 
-$("next").addEventListener("click", advance);
-
-function advance(){
-  if (typing) { finishTyping(); return; }
-  scene.lines[lineIdx].tokens.forEach((tk, i) => {
-    if (tk.bad && marks[i] !== 1) stats.missed.push(tk.text);
-  });
-  lineIdx++;
-  if (lineIdx >= scene.lines.length) { showResult(); return; }
-  renderLine();
-}
-
-/* ---------- リザルト ---------- */
-function showResult(){
-  const rate = stats.total ? Math.round(stats.found * 100 / stats.total) : 0;
-  const color = rate >= 80 ? "var(--ok)" : rate >= 50 ? "var(--accent)" : "var(--bad)";
-
-  $("r-title").textContent = scene.title || "リザルト";
-  $("r-rate").textContent = rate + " %";
-  $("r-rate").style.color = color;
-  $("r-total").textContent = stats.total;
-  $("r-found").textContent = stats.found;
-  $("r-wrong").textContent = stats.wrong;
-
-  const g = $("r-gauge");
-  g.style.background = color;
-  g.style.width = "0";
-  requestAnimationFrame(() => { g.style.width = rate + "%"; });
-
-  $("r-comment").textContent =
-    rate >= 100 ? "問題のある発言をすべて見抜けました。誤って指摘した数も確認してみてください。"
-    : rate >= 80 ? "よく気づけています。見逃した発言も目を通しておきましょう。"
-    : rate >= 50 ? "半分は指摘できました。どこが境目だったか振り返ってみてください。"
-    : "見逃しが多いようです。もう一度やってみると、見え方が変わります。";
-
-  const ul = $("r-missed");
-  ul.innerHTML = "";
-  stats.missed.forEach(t => {
-    const li = document.createElement("li");
-    li.textContent = t;
-    ul.appendChild(li);
-  });
-  $("r-missed-box").hidden = stats.missed.length === 0;
-
-  const bits = [];
-  if (profile.industry) bits.push(profile.industry);
-  if (profile.size) bits.push(profile.size);
-  $("r-meta").textContent = bits.length
-    ? bits.join("　／　") + " の区分で記録しました。"
-    : "業種と規模は未選択です。";
-
-  show("s-result");
-}
-
-/* ---------- アンケート ---------- */
-let survey = { want: null, free: "", contact: "" };
-
-function answer(want){
-  survey.want = want;
-  $("sv-ask").hidden = true;
-  $("sv-head").textContent = want ? "ありがとうございます" : "ご回答ありがとうございます";
-  $("sv-sub").textContent = want
-    ? "ご連絡先をいただければ、完全版のご案内をお送りします。"
-    : "差し支えなければ、そう思われた理由をお聞かせください。";
-  $("sv-contact").hidden = !want;
-  $("sv-detail").hidden = false;
-}
-
-$("sv-yes").addEventListener("click", () => answer(true));
-$("sv-no").addEventListener("click", () => answer(false));
-
-$("sv-send").addEventListener("click", () => {
-  survey.free = $("sv-free").value.trim();
-  survey.contact = $("sv-contact").value.trim();
-  $("sv-detail").hidden = true;
-  $("sv-thanks").hidden = false;
-  submitSurvey();
-});
-
-/* ---------- 回答の送信先 ----------
-   Google フォームに送る場合は、ここの2つを埋めるだけで繋がる。
-
-   url    … 共有リンクの末尾 /viewform を /formResponse に差し替えたもの
-            例) https://docs.google.com/forms/d/e/1FAIpQLSxxxxxxxx/formResponse
-
-   fields … 設問ごとの entry 番号。
-            フォーム編集画面の「事前入力したURLを取得」で仮の回答を入れると、
-            できあがったURLに entry.123456789=... の形で並ぶので、それを貼る。
-            使わない項目は空のままでよい（空の項目は送信しない）。
-
-   url が空のあいだは送信せず、画面の完了表示だけを行う。 */
-const SURVEY_FORM = {
-  // 所感確認フォーム
-  url: "https://docs.google.com/forms/d/e/1FAIpQLSd_h6uk1cyTTDb-EMsg-LivpIhAj31Pm6G34zgytQp236lr-w/formResponse",
-  fields: {
-    want:     "entry.1896384436",   // 完全版を使ってみたいか（ラジオ・必須）
-    free:     "entry.2005172274",   // ご意見
-    contact:  "entry.2096224368",   // ご連絡先
-    industry: "entry.1268290703",   // 業種
-    size:     "entry.1744525395",   // 従業員規模
-    scene:    "entry.1439342981",   // プレイしたシーン
-    rate:     "entry.1268560337"    // 指摘率
+  /* 指摘できた発言／見逃した発言の一覧。体裁は同じで、枠の色だけが違う */
+  function fillReview(ulId, boxId, items){
+    const ul = $(ulId);
+    ul.innerHTML = "";
+    items.forEach(m => {
+      const li = document.createElement("li");
+      const q = document.createElement("p");
+      q.className = "m-q";
+      q.textContent = m.text;
+      const w = document.createElement("p");
+      w.className = "m-w";
+      w.textContent = m.why;
+      li.appendChild(q); li.appendChild(w);
+      ul.appendChild(li);
+    });
+    $(boxId).hidden = items.length === 0;
   }
-};
 
-function submitSurvey(){
-  if (!SURVEY_FORM.url) return;
+  /* ---------- リザルト ---------- */
+  function showResult(){
+    Sound.play("result");
+    const rate = stats.total ? Math.round(stats.found * 100 / stats.total) : 0;
+    const lv  = rate >= 80 ? "good" : rate >= 50 ? "mid" : "bad";
+    const col = lv === "good" ? "var(--c-ok)" : lv === "mid" ? "var(--c-warn)" : "var(--c-bad)";
 
-  const values = {
-    want:     survey.want ? "使ってみたい" : "今はいらない",
-    free:     survey.free,
-    contact:  survey.contact,
-    industry: profile.industry,
-    size:     profile.size,
-    scene:    scene ? scene.title : "",
-    rate:     String(stats.total ? Math.round(stats.found * 100 / stats.total) : 0)
+    $("r-scene").textContent = scene.title || "リザルト";
+    $("r-rate-n").textContent = rate;
+    $("r-rate").className = "r-rate lv-" + lv;
+    /* 見逃しが多いときだけ警告を出す。SVG に .hidden は効かないので class で切り替える */
+    $("r-sign").classList.toggle("on", rate < 50);
+    $("r-total").textContent = stats.total;
+    $("r-found").textContent = stats.found;
+    $("r-wrong").textContent = stats.wrong;
+
+    const g = $("r-gauge");
+    g.style.background = col;
+    g.style.width = "0";
+    requestAnimationFrame(() => { g.style.width = rate + "%"; });
+
+    $("r-comment").textContent =
+      rate >= 100 ? "問題のある発言をすべて見抜けました。誤って指摘した数も確認してみてください。"
+      : rate >= 80 ? "よく気づけています。見逃した発言も目を通しておきましょう。"
+      : rate >= 50 ? "半分は指摘できました。どこが境目だったか振り返ってみてください。"
+      : "見逃しが多いようです。もう一度やってみると、見え方が変わります。";
+
+    updatePromo();
+
+    fillReview("r-hit", "r-hit-box", stats.hit);
+    fillReview("r-missed", "r-missed-box", stats.missed);
+
+    show("s-result");
+  }
+
+  /* ---------- 問い合わせ ----------
+     アンケートフォームは廃止した。アプリ側は何も送信せず、端末のメールアプリに
+     渡すだけにしている。利用者の入力を預からないので、送信の同意やプライバシー
+     ポリシー上の収集項目の申告が不要になる。 */
+  const CONTACT = {
+    /* ★ここに問い合わせ先アドレスを入れてください ★ */
+    mail: "game-support@se-project.co.jp",
+    subject: "はらシミュ お問い合わせ",
+    version: "1.0.0"
   };
 
-  const data = new FormData();
-  for (const key of Object.keys(SURVEY_FORM.fields)) {
-    const id = SURVEY_FORM.fields[key];
-    if (id && values[key]) data.append(id, values[key]);
+  function setupContact(){
+    const body = [
+      "",
+      "",
+      "--------------------------------",
+      "※以下は不具合調査用です。不要であれば消してください。",
+      "アプリ: はらシミュ " + CONTACT.version,
+      "端末: " + (navigator.userAgent || "-")
+    ].join("\n");
+
+    $("ct-mail").href = "mailto:" + CONTACT.mail
+      + "?subject=" + encodeURIComponent(CONTACT.subject)
+      + "&body=" + encodeURIComponent(body);
+    $("ct-addr").textContent = CONTACT.mail;
   }
 
-  // Google フォームは応答を返さないため、送信は片道で行う。
-  // 失敗しても画面の進行は止めない。
-  fetch(SURVEY_FORM.url, { method: "POST", mode: "no-cors", body: data }).catch(() => {});
-}
+  $("ct-copy").addEventListener("click", async () => {
+    let ok = false;
+    try {
+      await navigator.clipboard.writeText(CONTACT.mail);
+      ok = true;
+    } catch (e) {
+      /* WebView では clipboard API が使えないことがあるので、古い手段に落とす */
+      try {
+        const t = document.createElement("textarea");
+        t.value = CONTACT.mail;
+        t.style.position = "fixed";
+        t.style.opacity = "0";
+        document.body.appendChild(t);
+        t.select();
+        ok = document.execCommand("copy");
+        t.remove();
+      } catch (e2) { ok = false; }
+    }
+    const d = $("ct-done");
+    d.textContent = ok ? "コピーしました" : "長押しでコピーしてください";
+    d.hidden = false;
+    setTimeout(() => { d.hidden = true; }, 2000);
+  });
 
-function resetSurvey(){
-  survey = { want: null, free: "", contact: "" };
-  $("sv-free").value = "";
-  $("sv-contact").value = "";
-  $("sv-ask").hidden = false;
-  $("sv-detail").hidden = true;
-  $("sv-thanks").hidden = true;
-}
+  setupContact();
 
-$("again").addEventListener("click", () => { resetSurvey(); buildSceneList(); show("s-title"); });
-$("retry").addEventListener("click", () => { resetSurvey(); startScene(scene._index); });
+  /* ---------- 結果のシェア ----------
+     予算ゼロでも使える唯一の流入経路なので、画像そのものが広告になるよう
+     アプリ名と要点を焼き込みます。個人が特定される情報は入れません。 */
+  function drawShareCard(){
+    const S = 1080, c = document.createElement("canvas");
+    c.width = c.height = S;
+    const g = c.getContext("2d");
+
+    g.fillStyle = "#13151c"; g.fillRect(0, 0, S, S);
+    g.fillStyle = "#1b1f29"; g.fillRect(0, 0, S, 150);
+    g.fillStyle = "#ffd426"; g.fillRect(0, 148, S, 4);
+
+    const rate = stats.total ? Math.round(stats.found * 100 / stats.total) : 0;
+    const serif = '"Shippori Mincho","Hiragino Mincho ProN",serif';
+    const sans  = '"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif';
+    const mid = S / 2;
+
+    g.textAlign = "center";
+    g.fillStyle = "#a7aebf"; g.font = "28px " + sans;
+    g.fillText("パワハラシミュレータ", mid, 92);
+
+    g.fillStyle = "#f3f4f8"; g.font = "44px " + serif;
+    g.fillText(cut(g, scene && scene.title ? scene.title : "", 40, S - 120), mid, 250);
+
+    g.fillStyle = "#79818f"; g.font = "26px " + sans;
+    g.fillText("ハラスメントに当たる発言を、見抜けた割合", mid, 318);
+
+    g.fillStyle = rate >= 80 ? "#5fd68a" : rate >= 50 ? "#ffd426" : "#ff6b6b";
+    g.font = "700 210px " + serif;
+    g.fillText(rate + "%", mid, 520);
+
+    // ゲージ
+    const gx = 140, gw = S - 280, gy = 572;
+    g.fillStyle = "#232834"; g.fillRect(gx, gy, gw, 16);
+    g.fillRect(gx, gy, gw, 16);
+    g.fillStyle = rate >= 80 ? "#5fd68a" : rate >= 50 ? "#ffd426" : "#ff6b6b";
+    g.fillRect(gx, gy, gw * rate / 100, 16);
+
+    // 内訳
+    const cells = [
+      [stats.total, "該当した発言", "#f3f4f8"],
+      [stats.found, "指摘できた", "#5fd68a"],
+      [stats.wrong, "言いすぎと誤認した", "#6fb7ff"],
+    ];
+    cells.forEach((cell, i) => {
+      const x = S / 6 * (1 + i * 2);
+      g.fillStyle = cell[2]; g.font = "700 76px " + serif;
+      g.fillText(String(cell[0]), x, 720);
+      g.fillStyle = "#79818f"; g.font = "24px " + sans;
+      g.fillText(cell[1], x, 762);
+    });
+
+    g.fillStyle = "#a7aebf"; g.font = "30px " + sans;
+    g.fillText("厳しい指導と、行き過ぎた叱責。", mid, 880);
+    g.fillText("その境目を、あなたは見分けられますか。", mid, 926);
+
+    g.fillStyle = "#ffd426"; g.font = "700 28px " + sans;
+    g.fillText("App Store / Google Play で配信中", mid, 1010);
+
+    return c;
+  }
+
+  function cut(g, text, size, maxw){
+    // 長いシーン名がはみ出さないように、入るところで切って…を付ける
+    let s = text;
+    while (s && g.measureText(s).width > maxw) s = s.slice(0, -1);
+    return s === text ? s : s.slice(0, -1) + "…";
+  }
+
+  async function shareResult(){
+    const btn = $("share-btn"), note = $("share-note");
+    btn.disabled = true;
+    const label = btn.textContent;
+    btn.textContent = "画像を作成中…";
+    try {
+      const canvas = drawShareCard();
+      const blob = await new Promise(r => canvas.toBlob(r, "image/png"));
+      const file = new File([blob], "pawahara-result.png", { type: "image/png" });
+      const text = "「パワハラシミュレータ」で、指摘率 "
+        + (stats.total ? Math.round(stats.found * 100 / stats.total) : 0) + "% でした。";
+
+      // ① 画像つきの共有シート（iOS/Android のアプリ内 WebView で使えます）
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], text: text });
+        note.textContent = "共有しました。";
+      // ② 画像が無理なら文字だけ
+      } else if (navigator.share) {
+        await navigator.share({ text: text });
+        note.textContent = "共有しました。";
+      // ③ どちらも無ければ保存
+      } else {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "pawahara-result.png";
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+        note.textContent = "画像を保存しました。";
+      }
+    } catch (e) {
+      // ユーザーが共有シートを閉じただけの場合はエラー扱いにしない
+      if (!(e && e.name === "AbortError")) {
+        note.textContent = "共有できませんでした。端末の設定をご確認ください。";
+        console.warn(e);
+      }
+    } finally {
+      btn.disabled = false;
+      btn.textContent = label;
+    }
+  }
+
+  $("share-btn").addEventListener("click", shareResult);
+
+  /* ---------- ネイティブ連携 ----------
+     アプリとして動いているときだけ、状態バーと触覚フィードバックを使います。
+     ブラウザで開いたときは、この関数はすべて何もしません。 */
+  const Native = (() => {
+    const C = window.Capacitor;
+    const on = !!(C && C.isNativePlatform && C.isNativePlatform());
+    const P = (name) => (C && C.Plugins && C.Plugins[name]) || null;
+    return {
+      on: on,
+      async boot(){
+        if (!on) return;
+        try {
+          const sb = P("StatusBar");
+          if (sb) { await sb.setStyle({ style: "DARK" }); await sb.setBackgroundColor({ color: "#13151c" }); }
+          const ss = P("SplashScreen");
+          if (ss) await ss.hide();
+        } catch (e) { console.warn("native boot", e); }
+      },
+      tap(kind){
+        if (!on) return;
+        const h = P("Haptics");
+        if (!h) return;
+        try {
+          if (kind === "ok") h.impact({ style: "MEDIUM" });
+          else if (kind === "ng") h.notification({ type: "WARNING" });
+          else h.impact({ style: "LIGHT" });
+        } catch (e) { /* 触覚は無くても遊べるので黙って無視する */ }
+      },
+    };
+  })();
+  Native.boot();
+
+  /* ---------- 効果音 ----------
+     assets/se/ の4ファイルを鳴らすだけ。外部通信は一切しない。
+     音源を差し替えるときは、同じ名前のまま上書きすればここは触らなくてよい。
+       ok.m4a      正しく指摘できた
+       ng.m4a      問題のない発言を誤って指摘した
+       next.m4a    ページ送り
+       result.m4a  リザルト表示
+     iOS と Android の WebView は、最初のユーザー操作まで音を出さない。
+     そのため初回のタップで一度だけ無音再生して制限を外す。 */
+  const Sound = (() => {
+    const NAMES = ["ok", "ng", "next", "result"];
+    const pool = {};
+    let on = true, unlocked = false;
+
+    try { on = localStorage.getItem("se") !== "0"; } catch (e) { /* 読めなくても鳴らす */ }
+
+    // 1音につき3つ持っておき、連打しても前の音を途切らせずに重ねる
+    NAMES.forEach(n => {
+      pool[n] = Array.from({ length: 3 }, () => {
+        const a = new Audio("assets/se/" + n + ".m4a");
+        a.preload = "auto";
+        return a;
+      });
+    });
+
+    function unlock(){
+      if (unlocked) return;
+      unlocked = true;
+      NAMES.forEach(n => pool[n].forEach(a => {
+        const v = a.volume;
+        a.volume = 0;
+        const p = a.play();
+        if (p && p.then) {
+          p.then(() => { a.pause(); a.currentTime = 0; a.volume = v; })
+           .catch(() => { a.volume = v; });
+        } else { a.volume = v; }
+      }));
+    }
+    document.addEventListener("touchend", unlock, { once: true, passive: true });
+    document.addEventListener("click", unlock, { once: true });
+
+    return {
+      get on(){ return on; },
+      play(name){
+        if (!on) return;
+        const ps = pool[name];
+        if (!ps) return;
+        const a = ps.find(x => x.paused || x.ended) || ps[0];
+        try {
+          a.currentTime = 0;
+          const p = a.play();
+          if (p && p.catch) p.catch(() => {});
+        } catch (e) { /* 音が出なくても遊べるので黙って無視する */ }
+      },
+      toggle(){
+        on = !on;
+        try { localStorage.setItem("se", on ? "1" : "0"); } catch (e) {}
+        return on;
+      },
+    };
+  })();
+
+  function paintMute(){
+    const b = $("mute");
+    b.classList.toggle("off", !Sound.on);
+    b.setAttribute("aria-label", Sound.on ? "音を消す" : "音を出す");
+  }
+  $("mute").addEventListener("click", () => {
+    Sound.toggle();
+    paintMute();
+    Sound.play("next");   // 音を戻したときだけ鳴り、確認になる
+  });
+  paintMute();
+
+  /* 結果の下に出す一言。法人向けの宣伝は条件4で外したので、
+     次に遊ぶシーンへ誘導する */
+  function updatePromo(){
+    const box = $("promo");
+    const rest = SCENES.length - 1;
+    if (rest <= 0) { box.hidden = true; return; }
+    box.hidden = false;
+    const rate = stats.total ? Math.round(stats.found * 100 / stats.total) : 0;
+    /* 見出しは1行に収まる長さにする。パネルの幅で折り返すと間延びするため */
+    $("promo-h").textContent = rate >= 80 ? "ほかの場面でも見抜けますか"
+                                          : "別の場面も試してみませんか";
+    /* 遊んだ種類を前提にした書き方にしない。ほかに収録している種類だけを挙げる */
+    const others = ["power", "customer", "sexual"]
+      .filter(k => k !== (scene && scene.type) && SCENES.some(s => s.type === k))
+      .map(k => TYPE_LONG[k]);
+    $("promo-p").textContent =
+      "収録されているシーンは全部で " + SCENES.length + " 本です。"
+      + (others.length
+          ? others.join("と") + "では、見るべき点が変わります。"
+          : "同じ種類でも、場面が変われば境目の見え方は変わります。");
+  }
+
+  $("again").addEventListener("click", () => { buildSceneList(); show("s-title"); });
+  $("retry").addEventListener("click", () => { startScene(scene._index); });
 
 </script>
 
